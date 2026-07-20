@@ -3,6 +3,9 @@ import pandas as pd
 import datetime
 import os
 import io
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.application import MIMEApplication
 
 # Configuración de página (Debe ser el primer comando de Streamlit)
 st.set_page_config(
@@ -130,6 +133,18 @@ import modules.proyectos_dash as proy_dash
 import modules.industria40 as i40
 import modules.manual as man
 import modules.mantenimiento as maint
+
+def generar_eml_bytes(to_email, subject, body_text, attachment_bytes=None, attachment_name=None):
+    msg = MIMEMultipart()
+    msg['From'] = 'control.financiero@jd-automation.com'
+    msg['To'] = to_email
+    msg['Subject'] = subject
+    msg.attach(MIMEText(body_text, 'plain', 'utf-8'))
+    if attachment_bytes and attachment_name:
+        part = MIMEApplication(attachment_bytes, Name=attachment_name)
+        part['Content-Disposition'] = f'attachment; filename="{attachment_name}"'
+        msg.attach(part)
+    return msg.as_bytes()
 
 # Control de Autenticación
 auth.requiere_auth()
@@ -266,20 +281,58 @@ if menu.startswith("1."):
             if st.session_state.get('gasto_guardado_exito', False):
                 st.success("🎉 **¡Registro Exitoso!** El gasto se ha guardado en la base de datos.")
                 
-                # Botón para descargar el PDF generado como respaldo obligatorio
-                st.download_button(
-                    label="📥 Descargar Respaldo PDF del Registro (Obligatorio)",
-                    data=st.session_state['last_pdf_bytes'],
-                    file_name=st.session_state['last_pdf_name'],
-                    mime="application/pdf",
-                    use_container_width=True
-                )
+                col_ok_1, col_ok_2 = st.columns(2)
+                with col_ok_1:
+                    st.markdown("##### **📄 Descargar Respaldo Físico**")
+                    # Botón para descargar el PDF generado como respaldo obligatorio
+                    st.download_button(
+                        label="📥 Descargar Respaldo PDF (Obligatorio)",
+                        data=st.session_state['last_pdf_bytes'],
+                        file_name=st.session_state['last_pdf_name'],
+                        mime="application/pdf",
+                        use_container_width=True
+                    )
+                    
+                    st.markdown("<div style='height:40px;'></div>", unsafe_allow_html=True)
+                    if st.button("Capturar Otro Gasto", use_container_width=True):
+                        st.session_state['gasto_guardado_exito'] = False
+                        st.session_state['last_pdf_bytes'] = None
+                        st.session_state['last_pdf_name'] = None
+                        st.rerun()
                 
-                if st.button("Capturar Otro Gasto"):
-                    st.session_state['gasto_guardado_exito'] = False
-                    st.session_state['last_pdf_bytes'] = None
-                    st.session_state['last_pdf_name'] = None
-                    st.rerun()
+                with col_ok_2:
+                    st.markdown("##### **📩 Enviar Notificación por Correo (.eml)**")
+                    df_users = db.get_usuarios_df()
+                    emails_registrados = []
+                    if not df_users.empty and 'email' in df_users.columns:
+                        emails_registrados = df_users['email'].dropna().tolist()
+                    
+                    opciones_email = emails_registrados + ["Otro correo..."]
+                    dest_email_sel = st.selectbox("Seleccione Correo Destinatario", opciones_email, key="individual_eml_dest")
+                    
+                    if dest_email_sel == "Otro correo...":
+                        dest_email = st.text_input("Escriba el correo destino", placeholder="ejemplo@jd-automation.com", key="individual_eml_txt").strip()
+                    else:
+                        dest_email = dest_email_sel
+                        
+                    if st.button("Generar Archivo EML de Notificación", use_container_width=True):
+                        if dest_email:
+                            try:
+                                subject = f"Registro de Egresos - Nuevo Gasto Folio - J&D Automation"
+                                body = f"Hola,\n\nSe ha capturado un nuevo gasto en el sistema de J&D Automation Industries.\n\nSe adjunta el recibo digital de respaldo del registro en formato PDF.\n\nSaludos,\nSistema de Control Financiero J&D."
+                                eml_data = generar_eml_bytes(dest_email, subject, body, st.session_state['last_pdf_bytes'], st.session_state['last_pdf_name'])
+                                st.download_button(
+                                    label="📥 Descargar Correo EML del Recibo",
+                                    data=eml_data,
+                                    file_name=f"{st.session_state['last_pdf_name']}.eml",
+                                    mime="message/rfc822",
+                                    use_container_width=True
+                                )
+                                st.success("✉️ Archivo EML generado con éxito. Ábralo en Outlook o Mail.")
+                            except Exception as e:
+                                st.error(f"Error al generar correo: {str(e)}")
+                        else:
+                            st.warning("Ingrese o seleccione un correo válido.")
             else:
                 with st.form("manual_expense_form"):
                     col_g1, col_g2 = st.columns(2)
@@ -780,6 +833,49 @@ elif menu.startswith("4."):
                     )
                 except Exception as e:
                     st.error(f"Error al generar PDF: {str(e)}")
+                    pdf_bytes = None
+
+            # Generación de archivo EML de copia
+            st.markdown("---")
+            st.markdown("##### **📩 Generar Plantilla de Correo (.eml) para Enviar Copia**")
+            
+            df_users = db.get_usuarios_df()
+            emails_registrados = []
+            if not df_users.empty and 'email' in df_users.columns:
+                emails_registrados = df_users['email'].dropna().tolist()
+            
+            opciones_email = emails_registrados + ["Otro correo..."]
+            dest_email_sel = st.selectbox(f"Seleccione Destinatario ({filename_prefix})", opciones_email, key=f"eml_dest_{filename_prefix}")
+            
+            if dest_email_sel == "Otro correo...":
+                dest_email = st.text_input(f"Escriba el correo destino ({filename_prefix})", placeholder="ejemplo@jd-automation.com", key=f"eml_dest_txt_{filename_prefix}").strip()
+            else:
+                dest_email = dest_email_sel
+                
+            if st.button(f"Generar Archivo EML ({filename_prefix})", use_container_width=True):
+                if dest_email:
+                    try:
+                        if not pdf_bytes:
+                            pdf_bytes = pdf_gen.generar_pdf_tabla(df_disp, f"Reporte de Movimientos - {filename_prefix.upper()}")
+                        
+                        pdf_att_name = f"reporte_{filename_prefix}_{datetime.date.today().strftime('%Y%m%d')}.pdf"
+                        subject = f"Reporte de Movimientos - {filename_prefix.upper()} - J&D Automation"
+                        body = f"Hola,\n\nSe adjunta el reporte de movimientos de {filename_prefix.upper()} de J&D Automation Industries correspondiente al día de hoy ({datetime.date.today().strftime('%d/%m/%Y')}).\n\nSaludos,\nSistema de Control Financiero J&D."
+                        
+                        eml_data = generar_eml_bytes(dest_email, subject, body, pdf_bytes, pdf_att_name)
+                        
+                        st.download_button(
+                            label=f"📥 Descargar Archivo EML ({filename_prefix}.eml)",
+                            data=eml_data,
+                            file_name=f"reporte_{filename_prefix}_{datetime.date.today().strftime('%Y%m%d')}.eml",
+                            mime="message/rfc822",
+                            use_container_width=True
+                        )
+                        st.success("✉️ Archivo EML generado con éxito. Descárguelo y ábralo en su gestor de correo para enviar.")
+                    except Exception as e:
+                        st.error(f"Error al generar correo: {str(e)}")
+                else:
+                    st.warning("Ingrese o seleccione un correo electrónico válido.")
             
         with tab_cc:
             df_cc = df_gastos[df_gastos['metodo_pago'] == 'Tarjeta de Crédito']

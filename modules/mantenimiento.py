@@ -119,7 +119,7 @@ def _render_gestion_usuarios():
         if not df_u.empty:
             df_disp = df_u.copy()
             df_disp['activo'] = df_disp['activo'].map({1: 'Activo', 0: 'Inactivo'})
-            df_disp.columns = ['ID', 'Usuario', 'Nombre Completo', 'Rol', 'Estado']
+            df_disp.columns = ['ID', 'Usuario', 'Nombre Completo', 'Correo Electrónico', 'Rol', 'Estado']
             st.dataframe(df_disp, use_container_width=True, hide_index=True)
         else:
             st.info("No hay usuarios registrados.")
@@ -129,18 +129,19 @@ def _render_gestion_usuarios():
         new_username = st.text_input("Nombre de Usuario (Login)", key="new_u_username").strip()
         new_password = st.text_input("Contraseña", type="password", key="new_u_pass")
         new_fullname = st.text_input("Nombre Completo", key="new_u_fullname").strip()
+        new_email = st.text_input("Correo Electrónico", key="new_u_email").strip()
         new_rol = st.selectbox("Rol del Usuario", ["Administrador", "Capturista", "Consultor"], key="new_u_rol")
         
         if st.button("Crear Usuario", use_container_width=True):
-            if new_username and new_password and new_fullname:
-                success, msg = db.add_usuario(new_username, new_password, new_fullname, new_rol)
+            if new_username and new_password and new_fullname and new_email:
+                success, msg = db.add_usuario(new_username, new_password, new_fullname, new_email, new_rol)
                 if success:
                     st.success(msg)
                     st.rerun()
                 else:
                     st.error(msg)
             else:
-                st.warning("Complete todos los campos del nuevo usuario.")
+                st.warning("Complete todos los campos del nuevo usuario (incluyendo el correo).")
 
         st.markdown("---")
         st.markdown("#### **Cambiar Contraseña / Estado**")

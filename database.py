@@ -36,6 +36,11 @@ def init_db():
         cursor.execute("DROP TABLE gastos;")
         conn.commit()
 
+    # --- Migración automática: detectar esquema antiguo de usuarios (columna email) ---
+    if _table_exists(cursor, 'usuarios') and not _column_exists(cursor, 'usuarios', 'email'):
+        cursor.execute("DROP TABLE usuarios;")
+        conn.commit()
+
     # 1. Proyectos
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS proyectos (
@@ -108,6 +113,7 @@ def init_db():
         username TEXT NOT NULL UNIQUE,
         password_hash TEXT NOT NULL,
         nombre_completo TEXT,
+        email TEXT,
         rol TEXT NOT NULL CHECK(rol IN ('Administrador', 'Capturista', 'Consultor')),
         activo INTEGER DEFAULT 1
     );''')
@@ -212,12 +218,12 @@ def seed_demo_data(conn):
     cursor.execute("SELECT COUNT(*) FROM usuarios")
     if cursor.fetchone()[0] == 0:
         pwd_hash = bcrypt.hashpw("JD2024Admin".encode(), bcrypt.gensalt()).decode()
-        cursor.execute("INSERT INTO usuarios (username, password_hash, nombre_completo, rol, activo) VALUES (?, ?, ?, ?, ?)",
-                       ("admin", pwd_hash, "Administrador J&D", "Administrador", 1))
+        cursor.execute("INSERT INTO usuarios (username, password_hash, nombre_completo, email, rol, activo) VALUES (?, ?, ?, ?, ?, ?)",
+                       ("admin", pwd_hash, "Administrador J&D", "admin@jd-automation.com", "Administrador", 1))
         # Usuario demo capturista
         pwd_c = bcrypt.hashpw("captura123".encode(), bcrypt.gensalt()).decode()
-        cursor.execute("INSERT INTO usuarios (username, password_hash, nombre_completo, rol, activo) VALUES (?, ?, ?, ?, ?)",
-                       ("capturista", pwd_c, "Capturista Demo", "Capturista", 1))
+        cursor.execute("INSERT INTO usuarios (username, password_hash, nombre_completo, email, rol, activo) VALUES (?, ?, ?, ?, ?, ?)",
+                       ("capturista", pwd_c, "Capturista Demo", "captura@jd-automation.com", "Capturista", 1))
 
     conn.commit()
 
@@ -289,27 +295,27 @@ def get_conceptos(rubro, subrubro):
 # FUNCIONES DE USUARIOS
 # ─────────────────────────────────────────────
 def verificar_login(username, password):
-    """Verifica credenciales. Retorna (nombre_completo, rol) o None si falla."""
+    """Verifica credenciales. Retorna (nombre_completo, rol, email) o None si falla."""
     conn = get_db_connection()
     row = conn.execute("SELECT * FROM usuarios WHERE username=? AND activo=1", (username,)).fetchone()
     conn.close()
     if row and bcrypt.checkpw(password.encode(), row['password_hash'].encode()):
-        return {'username': row['username'], 'nombre_completo': row['nombre_completo'], 'rol': row['rol']}
+        return {'username': row['username'], 'nombre_completo': row['nombre_completo'], 'rol': row['rol'], 'email': row['email']}
     return None
 
 def get_usuarios_df():
     conn = get_db_connection()
-    df = pd.read_sql_query("SELECT id, username, nombre_completo, rol, activo FROM usuarios", conn)
+    df = pd.read_sql_query("SELECT id, username, nombre_completo, email, rol, activo FROM usuarios", conn)
     conn.close()
     return df
 
-def add_usuario(username, password, nombre_completo, rol):
+def add_usuario(username, password, nombre_completo, email, rol):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
         pwd_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
-        cursor.execute("INSERT INTO usuarios (username, password_hash, nombre_completo, rol, activo) VALUES (?, ?, ?, ?, 1)",
-                       (username, pwd_hash, nombre_completo, rol))
+        cursor.execute("INSERT INTO usuarios (username, password_hash, nombre_completo, email, rol, activo) VALUES (?, ?, ?, ?, ?, ?, 1)",
+                       (username, pwd_hash, nombre_completo, email, rol))
         conn.commit()
         return True, f"Usuario '{username}' creado con éxito."
     except sqlite3.IntegrityError:
