@@ -191,7 +191,14 @@ if 'expense_submitted' not in st.session_state:
 
 # --- BARRA LATERAL / NAVEGACIÓN ---
 st.sidebar.image("brand/logo_blanco.png", use_container_width=True)
-st.sidebar.markdown("<h3 style='color: #FFFFFF; text-align: center; margin-top:0; font-family:\"Montserrat\"; font-size: 16px;'>Control Financiero</h3>", unsafe_allow_html=True)
+st.sidebar.markdown("<h3 style='color: #FFFFFF; text-align: center; margin-top:0; font-family:\"Montserrat\"; font-size: 16px; margin-bottom: 5px;'>Control Financiero</h3>", unsafe_allow_html=True)
+st.sidebar.markdown("""
+<div style="text-align: center; margin-bottom: 15px;">
+    <a href="https://jydautomation.mx/" target="_blank" style="color: #FE8C29; text-decoration: none; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: bold; border: 1px solid #FE8C29; padding: 4px 10px; border-radius: 4px; display: inline-block; transition: all 0.3s ease;">
+        🌐 jydautomation.mx
+    </a>
+</div>
+""", unsafe_allow_html=True)
 st.sidebar.markdown("---")
 
 # Renderizar información de usuario
