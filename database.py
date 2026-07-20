@@ -44,7 +44,9 @@ def init_db():
         fecha TEXT NOT NULL,
         concepto TEXT NOT NULL,
         monto_neto REAL NOT NULL,
-        rubro TEXT NOT NULL CHECK(rubro IN ('Materiales', 'Mano de obra', 'Supervisión', 'Gastos generales', 'Herramienta', 'Maquinaria')),
+        rubro TEXT NOT NULL CHECK(rubro IN ('Mano de Obra y Personal', 'Materiales y Suministros', 'Herramientas y Maquinaria', 'Gastos Indirectos y Operación')),
+        subrubro TEXT NOT NULL,
+        concepto_detallado TEXT NOT NULL,
         proyecto_id INTEGER,
         deducible TEXT NOT NULL CHECK(deducible IN ('Sí', 'No')),
         estado_facturacion TEXT NOT NULL CHECK(estado_facturacion IN ('Pendiente', 'Facturado')),
@@ -113,20 +115,20 @@ def seed_demo_data(conn):
     # Comprobar si hay gastos
     cursor.execute("SELECT COUNT(*) FROM gastos")
     if cursor.fetchone()[0] == 0:
-        # Gastos iniciales
+        # Gastos iniciales adaptados al nuevo esquema de 3 niveles
         gastos = [
-            ('2026-07-01', 'Compra de Sensores OMRON', 45000.0, 'Materiales', 1, 'Sí', 'Facturado', 'Transferencia Bancaria', 2, 'OMR900101AA1', 'E80F9C7D-8B41-4770-983C-AA0FBD452771', 'factura_omron.xml', None),
-            ('2026-07-03', 'Pago Técnico Soldadura Especializada', 12000.0, 'Mano de obra', 1, 'No', 'Pendiente', 'Efectivo', 3, None, None, None, None),
-            ('2026-07-05', 'Renta de Grúa Industrial', 35000.0, 'Maquinaria', 2, 'Sí', 'Facturado', 'Tarjeta de Crédito', 1, 'ALQ881122BB2', '34BA22E8-E647-49CF-80CE-7E812D3A1BFA', 'grúa_renta.xml', None),
-            ('2026-07-10', 'Viáticos supervisión Querétaro', 8500.0, 'Supervisión', 1, 'Sí', 'Facturado', 'Tarjeta de Crédito', 1, 'HOT121212XX1', 'F29B273A-98C1-4D02-A8BD-D2690BEE77A2', 'hotel_qro.xml', None),
-            ('2026-07-12', 'Consumibles y Tornillería', 4200.0, 'Materiales', 3, 'No', 'Pendiente', 'Efectivo', 3, None, None, None, None),
-            ('2026-07-14', 'Compra de Osciloscopio Digital', 28000.0, 'Herramienta', 2, 'Sí', 'Facturado', 'Transferencia Bancaria', 2, 'TEC050505TT5', '8A7C99F1-2B4A-483A-BA11-19B1A0022B8C', 'tec_osc.xml', None),
-            ('2026-07-15', 'Servicios de Papelería y Oficina', 3100.0, 'Gastos generales', 2, 'Sí', 'Facturado', 'Tarjeta de Crédito', 1, 'PAP950818AA3', '1C1C8DFA-A31C-4B9F-8419-756E1F41A6CC', 'papeleria.xml', None)
+            ('2026-07-01', 'Compra de Sensores OMRON', 45000.0, 'Materiales y Suministros', 'Componentes del Proyecto', 'Relevadores y Cableado', 1, 'Sí', 'Facturado', 'Transferencia Bancaria', 2, 'OMR900101AA1', 'E80F9C7D-8B41-4770-983C-AA0FBD452771', 'factura_omron.xml', None),
+            ('2026-07-03', 'Pago Técnico Soldadura Especializada', 12000.0, 'Mano de Obra y Personal', 'Nómina Interna Operativa', 'Sueldo Base Técnicos', 1, 'No', 'Pendiente', 'Efectivo', 3, None, None, None, None),
+            ('2026-07-05', 'Renta de Grúa Industrial', 35000.0, 'Herramientas y Maquinaria', 'Equipo Mayor y Renta', 'Renta de Grúa Industrial', 2, 'Sí', 'Facturado', 'Tarjeta de Crédito', 1, 'ALQ881122BB2', '34BA22E8-E647-49CF-80CE-7E812D3A1BFA', 'grúa_renta.xml', None),
+            ('2026-07-10', 'Viáticos supervisión Querétaro', 8500.0, 'Gastos Indirectos y Operación', 'Logística y Viáticos de Campo', 'Hoteles y Viáticos de Viaje', 1, 'Sí', 'Facturado', 'Tarjeta de Crédito', 1, 'HOT121212XX1', 'F29B273A-98C1-4D02-A8BD-D2690BEE77A2', 'hotel_qro.xml', None),
+            ('2026-07-12', 'Consumibles y Tornillería', 4200.0, 'Materiales y Suministros', 'Consumibles de Taller', 'Soldadura y Tornillería', 3, 'No', 'Pendiente', 'Efectivo', 3, None, None, None, None),
+            ('2026-07-14', 'Compra de Osciloscopio Digital', 28000.0, 'Herramientas y Maquinaria', 'Herramienta Menor', 'Multímetros y Calibradores', 2, 'Sí', 'Facturado', 'Transferencia Bancaria', 2, 'TEC050505TT5', '8A7C99F1-2B4A-483A-BA11-19B1A0022B8C', 'tec_osc.xml', None),
+            ('2026-07-15', 'Servicios de Papelería y Oficina', 3100.0, 'Gastos Indirectos y Operación', 'Servicios y Oficina', 'Papelería y Artículos de Oficina', 2, 'Sí', 'Facturado', 'Tarjeta de Crédito', 1, 'PAP950818AA3', '1C1C8DFA-A31C-4B9F-8419-756E1F41A6CC', 'papeleria.xml', None)
         ]
         cursor.executemany(
             """INSERT INTO gastos 
-               (fecha, concepto, monto_neto, rubro, proyecto_id, deducible, estado_facturacion, metodo_pago, cuenta_id, rfc_proveedor, uuid_fiscal, xml_filename, pdf_filename)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               (fecha, concepto, monto_neto, rubro, subrubro, concepto_detallado, proyecto_id, deducible, estado_facturacion, metodo_pago, cuenta_id, rfc_proveedor, uuid_fiscal, xml_filename, pdf_filename)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             gastos
         )
 
@@ -217,7 +219,7 @@ def get_gastos_df():
     """Retorna un DataFrame con todos los gastos y nombres de proyectos/cuentas vinculados."""
     conn = get_db_connection()
     query = """
-        SELECT g.id, g.fecha, g.concepto, g.monto_neto, g.rubro, 
+        SELECT g.id, g.fecha, g.concepto, g.monto_neto, g.rubro, g.subrubro, g.concepto_detallado,
                p.nombre as proyecto_nombre, g.proyecto_id,
                g.deducible, g.estado_facturacion, g.metodo_pago,
                c.nombre as cuenta_nombre, g.cuenta_id,
@@ -231,15 +233,15 @@ def get_gastos_df():
     conn.close()
     return df
 
-def add_gasto(fecha, concepto, monto_neto, rubro, proyecto_id, deducible, estado_facturacion, metodo_pago, cuenta_id, rfc_proveedor=None, uuid_fiscal=None, xml_filename=None, pdf_filename=None):
+def add_gasto(fecha, concepto, monto_neto, rubro, subrubro, concepto_detallado, proyecto_id, deducible, estado_facturacion, metodo_pago, cuenta_id, rfc_proveedor=None, uuid_fiscal=None, xml_filename=None, pdf_filename=None):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
         cursor.execute(
             """INSERT INTO gastos 
-               (fecha, concepto, monto_neto, rubro, proyecto_id, deducible, estado_facturacion, metodo_pago, cuenta_id, rfc_proveedor, uuid_fiscal, xml_filename, pdf_filename)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (fecha, concepto, monto_neto, rubro, proyecto_id, deducible, estado_facturacion, metodo_pago, cuenta_id, rfc_proveedor, uuid_fiscal, xml_filename, pdf_filename)
+               (fecha, concepto, monto_neto, rubro, subrubro, concepto_detallado, proyecto_id, deducible, estado_facturacion, metodo_pago, cuenta_id, rfc_proveedor, uuid_fiscal, xml_filename, pdf_filename)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (fecha, concepto, monto_neto, rubro, subrubro, concepto_detallado, proyecto_id, deducible, estado_facturacion, metodo_pago, cuenta_id, rfc_proveedor, uuid_fiscal, xml_filename, pdf_filename)
         )
         conn.commit()
         return True, cursor.lastrowid

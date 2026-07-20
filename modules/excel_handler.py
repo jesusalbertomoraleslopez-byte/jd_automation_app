@@ -3,12 +3,74 @@ import datetime
 import pandas as pd
 from openpyxl import Workbook
 from openpyxl.worksheet.datavalidation import DataValidation
-from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-from database import get_db_connection, get_proyectos, get_cuentas, add_gasto
+from openpyxl.styles import Font, PatternFill, Alignment
+from database import get_proyectos, get_cuentas, add_gasto
+
+# Estructura de clasificaciones jerárquicas de 3 niveles para J&D Automation Industries
+CLASIFICACIONES = {
+    "Mano de Obra y Personal": {
+        "Carga Social y Obligaciones Fiscales": [
+            "Pago IMSS/INFONAVIT", 
+            "Retención ISR Salarios", 
+            "Impuesto Sobre Nómina (ISN)", 
+            "Aportaciones a la AFORE"
+        ],
+        "Nómina Interna Operativa": [
+            "Sueldo Base Técnicos", 
+            "Horas Extra", 
+            "Primas Vacacionales y Aguinaldos", 
+            "Bonos de Proyecto"
+        ],
+        "Subcontrataciones y Destajos (Con IVA)": [
+            "Ingenieros Externos (PLC/CAD)", 
+            "Contratistas de Montaje", 
+            "Maquila/Torneado Externo", 
+            "Agencias REPSE"
+        ],
+        "Sueldos Administrativos y Supervisión": [
+            "Nómina Project Managers", 
+            "Sueldos Dirección y Administración"
+        ]
+    },
+    "Materiales y Suministros": {
+        "Componentes del Proyecto": [
+            "Relevadores y Cableado", 
+            "Pistones y Neumática", 
+            "Gabinete Eléctrico"
+        ],
+        "Consumibles de Taller": [
+            "Soldadura y Tornillería", 
+            "Cintas y EPP Menor"
+        ]
+    },
+    "Herramientas y Maquinaria": {
+        "Equipo Mayor y Renta": [
+            "Renta de Grúa Industrial", 
+            "Renta de Andamios y Plataformas", 
+            "Compra de Equipos CNC/Grandes"
+        ],
+        "Herramienta Menor": [
+            "Pinzas, Destornilladores, Brocas", 
+            "Multímetros y Calibradores"
+        ]
+    },
+    "Gastos Indirectos y Operación": {
+        "Logística y Viáticos de Campo": [
+            "Gasolina y Casetas", 
+            "Hoteles y Viáticos de Viaje", 
+            "Fletes y Envíos"
+        ],
+        "Servicios y Oficina": [
+            "Renta de Oficina / Taller", 
+            "Luz, Agua e Internet", 
+            "Papelería y Artículos de Oficina"
+        ]
+    }
+}
 
 def generate_excel_template():
     """
-    Genera un archivo Excel en memoria con formato y validaciones de datos (listas desplegables).
+    Genera un archivo Excel en memoria con formato y validaciones de datos para la clasificación de 3 niveles.
     Retorna los bytes del archivo generado.
     """
     wb = Workbook()
@@ -18,26 +80,29 @@ def generate_excel_template():
     ws_gastos.title = "Gastos"
     ws_lists = wb.create_sheet("Listas_Config")
     
-    # Ocultar la hoja de listas para limpieza visual
-    # ws_lists.sheet_state = 'hidden' # La podemos ocultar, o dejarla visible. Dejémosla visible pero con advertencia.
-    
     # 2. Rellenar las listas en Listas_Config
-    # Obtener proyectos activos
     df_proy = get_proyectos(only_active=True)
     proyectos = df_proy['nombre'].tolist() if not df_proy.empty else ["Sin Proyectos Activos"]
     
-    rubros = ['Materiales', 'Mano de obra', 'Supervisión', 'Gastos generales', 'Herramienta', 'Maquinaria']
+    # Extraer categorías planas del diccionario de 3 niveles
+    rubros = list(CLASIFICACIONES.keys())
+    subrubros = []
+    conceptos = []
+    
+    for r_name, subs in CLASIFICACIONES.items():
+        for s_name, concs in subs.items():
+            subrubros.append(s_name)
+            conceptos.extend(concs)
+            
     deducibles = ['Sí', 'No']
     estados_fact = ['Pendiente', 'Facturado']
     metodos_pago = ['Tarjeta de Crédito', 'Transferencia Bancaria', 'Efectivo']
     
     # Escribir en Listas_Config
-    ws_lists.cell(row=1, column=1, value="Proyectos").font = Font(bold=True)
-    ws_lists.cell(row=1, column=2, value="Rubros").font = Font(bold=True)
-    ws_lists.cell(row=1, column=3, value="Deducible").font = Font(bold=True)
-    ws_lists.cell(row=1, column=4, value="Estado Facturación").font = Font(bold=True)
-    ws_lists.cell(row=1, column=5, value="Método Pago").font = Font(bold=True)
-    
+    headers_config = ["Proyectos", "Rubros Principales", "Subrubros", "Conceptos Detallados", "Deducible", "Estado Fact.", "Método Pago"]
+    for col_idx, header in enumerate(headers_config, start=1):
+        ws_lists.cell(row=1, column=col_idx, value=header).font = Font(bold=True)
+        
     # Escribir proyectos
     for idx, p in enumerate(proyectos, start=2):
         ws_lists.cell(row=idx, column=1, value=p)
@@ -46,24 +111,34 @@ def generate_excel_template():
     for idx, r in enumerate(rubros, start=2):
         ws_lists.cell(row=idx, column=2, value=r)
         
+    # Escribir subrubros
+    for idx, s in enumerate(subrubros, start=2):
+        ws_lists.cell(row=idx, column=3, value=s)
+        
+    # Escribir conceptos
+    for idx, c in enumerate(conceptos, start=2):
+        ws_lists.cell(row=idx, column=4, value=c)
+        
     # Escribir deducible
     for idx, d in enumerate(deducibles, start=2):
-        ws_lists.cell(row=idx, column=3, value=d)
+        ws_lists.cell(row=idx, column=5, value=d)
         
     # Escribir estados
     for idx, e in enumerate(estados_fact, start=2):
-        ws_lists.cell(row=idx, column=4, value=e)
+        ws_lists.cell(row=idx, column=6, value=e)
         
     # Escribir metodos de pago
     for idx, m in enumerate(metodos_pago, start=2):
-        ws_lists.cell(row=idx, column=5, value=m)
+        ws_lists.cell(row=idx, column=7, value=m)
         
     # 3. Diseñar la hoja de Gastos
     headers = [
         "Fecha (AAAA-MM-DD)",
-        "Concepto",
+        "Concepto General",
         "Monto Neto (IVA Incluido)",
-        "Rubro",
+        "Rubro Principal",
+        "Subrubro",
+        "Concepto Detallado",
         "Proyecto",
         "Deducible (Sí/No)",
         "Estado Facturación",
@@ -85,64 +160,82 @@ def generate_excel_template():
         cell.font = header_font
         cell.alignment = center_align
         
-    # Ajustar anchos de columnas
+    # Ajustar anchos de columnas (Columnas A a L)
     col_widths = {
-        'A': 18, 'B': 30, 'C': 25, 'D': 20, 'E': 35, 
-        'F': 15, 'G': 20, 'H': 25, 'I': 22, 'J': 38
+        'A': 18, 'B': 30, 'C': 25, 'D': 25, 'E': 32, 'F': 32,
+        'G': 35, 'H': 18, 'I': 20, 'J': 25, 'K': 22, 'L': 38
     }
     for col, width in col_widths.items():
         ws_gastos.column_dimensions[col].width = width
 
     # 4. Crear Validaciones de Datos
-    # Proyecto
+    # Rubro Principal (Col D)
+    dv_rubro = DataValidation(type="list", formula1=f"=Listas_Config!$B$2:$B${len(rubros)+1}", allow_blank=True)
+    dv_rubro.error ='El Rubro seleccionado no es válido'
+    dv_rubro.errorTitle = 'Rubro Inválido'
+    dv_rubro.prompt = 'Seleccione el Rubro Principal'
+    dv_rubro.promptTitle = 'Rubro Principal'
+
+    # Subrubro (Col E)
+    dv_subrubro = DataValidation(type="list", formula1=f"=Listas_Config!$C$2:$C${len(subrubros)+1}", allow_blank=True)
+    dv_subrubro.error ='El Subrubro seleccionado no es válido'
+    dv_subrubro.errorTitle = 'Subrubro Inválido'
+    dv_subrubro.prompt = 'Seleccione el Subrubro correspondiente'
+    dv_subrubro.promptTitle = 'Subrubro'
+
+    # Concepto Detallado (Col F)
+    dv_concepto = DataValidation(type="list", formula1=f"=Listas_Config!$D$2:$D${len(conceptos)+1}", allow_blank=True)
+    dv_concepto.error ='El Concepto seleccionado no es válido'
+    dv_concepto.errorTitle = 'Concepto Inválido'
+    dv_concepto.prompt = 'Seleccione el Concepto Detallado'
+    dv_concepto.promptTitle = 'Concepto Detallado'
+
+    # Proyecto (Col G)
     dv_proy = DataValidation(type="list", formula1=f"=Listas_Config!$A$2:$A${len(proyectos)+1}", allow_blank=True)
     dv_proy.error ='El proyecto seleccionado no es válido'
     dv_proy.errorTitle = 'Proyecto Inválido'
     dv_proy.prompt = 'Selecciona un proyecto de la lista'
     dv_proy.promptTitle = 'Proyecto'
     
-    # Rubro
-    dv_rubro = DataValidation(type="list", formula1=f"=Listas_Config!$B$2:$B${len(rubros)+1}", allow_blank=True)
-    dv_rubro.error ='El rubro seleccionado no es válido'
-    dv_rubro.errorTitle = 'Rubro Inválido'
-    dv_rubro.prompt = 'Selecciona el rubro correspondiente'
-    dv_rubro.promptTitle = 'Rubro'
-    
-    # Deducible
-    dv_deduc = DataValidation(type="list", formula1=f"=Listas_Config!$C$2:$C${len(deducibles)+1}", allow_blank=True)
+    # Deducible (Col H)
+    dv_deduc = DataValidation(type="list", formula1=f"=Listas_Config!$E$2:$E${len(deducibles)+1}", allow_blank=True)
     dv_deduc.error ='Valor inválido (Sí / No)'
     dv_deduc.errorTitle = 'Deducible Inválido'
     dv_deduc.prompt = 'Selecciona si es deducible/facturable'
     dv_deduc.promptTitle = 'Deducible'
     
-    # Estado Facturacion
-    dv_est = DataValidation(type="list", formula1=f"=Listas_Config!$D$2:$D${len(estados_fact)+1}", allow_blank=True)
+    # Estado Facturacion (Col I)
+    dv_est = DataValidation(type="list", formula1=f"=Listas_Config!$F$2:$F${len(estados_fact)+1}", allow_blank=True)
     dv_est.error ='El estado seleccionado no es válido'
     dv_est.errorTitle = 'Estado Inválido'
     dv_est.prompt = 'Selecciona si ya está Facturado o Pendiente'
     dv_est.promptTitle = 'Estado de Facturación'
     
-    # Método Pago
-    dv_met = DataValidation(type="list", formula1=f"=Listas_Config!$E$2:$E${len(metodos_pago)+1}", allow_blank=True)
+    # Método Pago (Col J)
+    dv_met = DataValidation(type="list", formula1=f"=Listas_Config!$G$2:$G${len(metodos_pago)+1}", allow_blank=True)
     dv_met.error ='El método de pago no es válido'
     dv_met.errorTitle = 'Método Inválido'
     dv_met.prompt = 'Selecciona el método de pago'
     dv_met.promptTitle = 'Método de Pago'
 
     # Agregar validaciones a la hoja de Gastos
-    ws_gastos.add_data_validation(dv_proy)
     ws_gastos.add_data_validation(dv_rubro)
+    ws_gastos.add_data_validation(dv_subrubro)
+    ws_gastos.add_data_validation(dv_concepto)
+    ws_gastos.add_data_validation(dv_proy)
     ws_gastos.add_data_validation(dv_deduc)
     ws_gastos.add_data_validation(dv_est)
     ws_gastos.add_data_validation(dv_met)
 
     # Asignar rangos de aplicación de validación (filas 2 a 500)
     range_cells = "2:500"
-    dv_proy.add(f"E{range_cells}")
     dv_rubro.add(f"D{range_cells}")
-    dv_deduc.add(f"F{range_cells}")
-    dv_est.add(f"G{range_cells}")
-    dv_met.add(f"H{range_cells}")
+    dv_subrubro.add(f"E{range_cells}")
+    dv_concepto.add(f"F{range_cells}")
+    dv_proy.add(f"G{range_cells}")
+    dv_deduc.add(f"H{range_cells}")
+    dv_est.add(f"I{range_cells}")
+    dv_met.add(f"J{range_cells}")
 
     # Guardar en memoria y retornar bytes
     out = io.BytesIO()
@@ -152,24 +245,22 @@ def generate_excel_template():
 
 def import_excel_expenses(file_bytes):
     """
-    Lee un archivo Excel cargado por el usuario, valida cada fila y la importa a la base de datos.
-    Retorna un diccionario con:
-      - 'success': bool
-      - 'imported_count': int
-      - 'errors': list of strings con detalles de errores encontrados en filas específicas.
+    Lee un archivo Excel cargado por el usuario, valida la jerarquía de 3 niveles de egresos y lo importa a la base de datos.
     """
     try:
-        # Leer el excel
         df = pd.read_excel(io.BytesIO(file_bytes), sheet_name="Gastos")
     except Exception as e:
         return {'success': False, 'imported_count': 0, 'errors': [f"Error al leer el archivo Excel: {str(e)}"]}
         
-    # Verificar columnas esperadas
+    df.columns = [c.strip() for c in df.columns]
+    
     expected_cols = [
         "Fecha (AAAA-MM-DD)",
-        "Concepto",
+        "Concepto General",
         "Monto Neto (IVA Incluido)",
-        "Rubro",
+        "Rubro Principal",
+        "Subrubro",
+        "Concepto Detallado",
         "Proyecto",
         "Deducible (Sí/No)",
         "Estado Facturación",
@@ -178,25 +269,19 @@ def import_excel_expenses(file_bytes):
         "UUID Fiscal (Opcional)"
     ]
     
-    # Limpiar nombres de columnas por si acaso tienen espacios extra
-    df.columns = [c.strip() for c in df.columns]
-    
-    # Validar que existan las columnas principales
-    missing_cols = [col for col in expected_cols[:8] if col not in df.columns]
+    missing_cols = [col for col in expected_cols[:10] if col not in df.columns]
     if missing_cols:
         return {
             'success': False,
             'imported_count': 0,
-            'errors': [f"Faltan las siguientes columnas obligatorias en la hoja 'Gastos': {', '.join(missing_cols)}"]
+            'errors': [f"Faltan columnas obligatorias en la hoja 'Gastos': {', '.join(missing_cols)}"]
         }
 
-    # Obtener proyectos de base de datos para mapeo de nombres a IDs
+    # Obtener catálogos para mapeos de IDs
     df_projects = get_proyectos()
     project_map = dict(zip(df_projects['nombre'], df_projects['id']))
     
-    # Obtener cuentas de base de datos para asignar cuenta por tipo de pago
     df_accounts = get_cuentas()
-    # Mapeamos tipo de cuenta a una lista de IDs de cuenta, tomaremos la primera disponible
     account_map = {}
     for _, row in df_accounts.iterrows():
         tipo = row['tipo']
@@ -207,109 +292,112 @@ def import_excel_expenses(file_bytes):
     errors = []
     rows_to_insert = []
     
-    # Validaciones permitidas
-    allowed_rubros = {'Materiales', 'Mano de obra', 'Supervisión', 'Gastos generales', 'Herramienta', 'Maquinaria'}
     allowed_deduc = {'Sí', 'No'}
     allowed_est = {'Pendiente', 'Facturado'}
     allowed_met = {'Tarjeta de Crédito', 'Transferencia Bancaria', 'Efectivo'}
 
     for idx, row in df.iterrows():
-        row_num = idx + 2 # Fila 1 es cabecera, pandas index 0 es Fila 2
+        row_num = idx + 2
         
-        # Ignorar filas completamente vacías
         if row.isna().all():
             continue
             
         fecha_val = row.get("Fecha (AAAA-MM-DD)")
-        concepto_val = row.get("Concepto")
+        concepto_val = row.get("Concepto General")
         monto_val = row.get("Monto Neto (IVA Incluido)")
-        rubro_val = row.get("Rubro")
+        rubro_val = row.get("Rubro Principal")
+        subrubro_val = row.get("Subrubro")
+        concepto_det_val = row.get("Concepto Detallado")
         proyecto_val = row.get("Proyecto")
         deduc_val = row.get("Deducible (Sí/No)")
         est_val = row.get("Estado Facturación")
         met_val = row.get("Método Pago")
         
-        # Opcionales
         rfc_val = row.get("RFC Proveedor (Opcional)")
         uuid_val = row.get("UUID Fiscal (Opcional)")
         
-        # Validar Campos Vacíos requeridos
-        if pd.isna(fecha_val) or pd.isna(concepto_val) or pd.isna(monto_val) or pd.isna(rubro_val) or pd.isna(proyecto_val) or pd.isna(deduc_val) or pd.isna(est_val) or pd.isna(met_val):
+        # Validar Campos Vacíos
+        if pd.isna(fecha_val) or pd.isna(concepto_val) or pd.isna(monto_val) or pd.isna(rubro_val) or pd.isna(subrubro_val) or pd.isna(concepto_det_val) or pd.isna(proyecto_val) or pd.isna(deduc_val) or pd.isna(est_val) or pd.isna(met_val):
             errors.append(f"Fila {row_num}: Contiene campos obligatorios vacíos.")
             continue
             
-        # Formatear y Validar Fecha
+        # Validar Fecha
         fecha_str = ""
         if isinstance(fecha_val, (datetime.datetime, datetime.date)):
             fecha_str = fecha_val.strftime('%Y-%m-%d')
         else:
-            # Intentar parsear texto
             try:
                 date_parsed = pd.to_datetime(str(fecha_val).strip(), format='%Y-%m-%d')
                 fecha_str = date_parsed.strftime('%Y-%m-%d')
             except Exception:
-                errors.append(f"Fila {row_num}: Formato de fecha inválido. Utilice AAAA-MM-DD (recibido: '{fecha_val}').")
+                errors.append(f"Fila {row_num}: Formato de fecha inválido (AAAA-MM-DD).")
                 continue
                 
         # Validar Monto
         try:
             monto_float = float(monto_val)
             if monto_float <= 0:
-                errors.append(f"Fila {row_num}: El monto debe ser mayor a cero (recibido: {monto_val}).")
+                errors.append(f"Fila {row_num}: El monto debe ser mayor a cero.")
                 continue
         except ValueError:
-            errors.append(f"Fila {row_num}: El monto debe ser un número válido (recibido: '{monto_val}').")
+            errors.append(f"Fila {row_num}: El monto debe ser un número válido.")
             continue
             
-        # Validar strings con listas
-        rubro_str = str(rubro_val).strip()
-        if rubro_str not in allowed_rubros:
-            errors.append(f"Fila {row_num}: Rubro '{rubro_str}' no es válido. Opciones: {list(allowed_rubros)}")
-            continue
-            
+        # Validar Deducible, Estado, Método
         deduc_str = str(deduc_val).strip()
         if deduc_str not in allowed_deduc:
-            errors.append(f"Fila {row_num}: Deducible '{deduc_str}' no es válido. Debe ser Sí o No.")
+            errors.append(f"Fila {row_num}: Deducible '{deduc_str}' no es válido.")
             continue
             
         est_str = str(est_val).strip()
         if est_str not in allowed_est:
-            errors.append(f"Fila {row_num}: Estado Facturación '{est_str}' no es válido. Debe ser Pendiente o Facturado.")
+            errors.append(f"Fila {row_num}: Estado Facturación '{est_str}' no es válido.")
             continue
             
         met_str = str(met_val).strip()
         if met_str not in allowed_met:
-            errors.append(f"Fila {row_num}: Método Pago '{met_str}' no es válido. Opciones: {list(allowed_met)}")
+            errors.append(f"Fila {row_num}: Método Pago '{met_str}' no es válido.")
             continue
             
         # Validar Proyecto
         proy_str = str(proyecto_val).strip()
         if proy_str not in project_map:
-            errors.append(f"Fila {row_num}: Proyecto '{proy_str}' no existe en la base de datos o está inactivo.")
+            errors.append(f"Fila {row_num}: Proyecto '{proy_str}' no existe o está inactivo.")
             continue
         proy_id = project_map[proy_str]
         
-        # Validar y limpiar RFC/UUID opcionales
+        # Validar Jerarquía de 3 Niveles
+        rubro_str = str(rubro_val).strip()
+        subrubro_str = str(subrubro_val).strip()
+        concepto_det_str = str(concepto_det_val).strip()
+        
+        if rubro_str not in CLASIFICACIONES:
+            errors.append(f"Fila {row_num}: El Rubro Principal '{rubro_str}' no es válido.")
+            continue
+            
+        if subrubro_str not in CLASIFICACIONES[rubro_str]:
+            errors.append(f"Fila {row_num}: El Subrubro '{subrubro_str}' no pertenece al Rubro '{rubro_str}'.")
+            continue
+            
+        if concepto_det_str not in CLASIFICACIONES[rubro_str][subrubro_str]:
+            errors.append(f"Fila {row_num}: El Concepto Detallado '{concepto_det_str}' no pertenece al Subrubro '{subrubro_str}'.")
+            continue
+            
         rfc_str = str(rfc_val).strip() if not pd.isna(rfc_val) else None
         uuid_str = str(uuid_val).strip() if not pd.isna(uuid_val) else None
         
-        if est_str == 'Facturado':
-            if not rfc_str or not uuid_str:
-                # Advertencia o error? Dejémoslo como advertencia o requiramos que si es Facturado, idealmente tenga RFC/UUID.
-                # De acuerdo a la especificación, los comprobantes cargados en Facturado deben poder subir XML/PDF.
-                # Por ahora, si suben por excel, permitimos omitirlo pero arrojamos advertencia o insertamos. Requeriremos que en excel al menos se procese.
-                pass
-                
         # Asignar cuenta asociada
         cuenta_id = None
         if met_str in account_map and len(account_map[met_str]) > 0:
-            cuenta_id = account_map[met_str][0] # Asignamos la primera cuenta de ese tipo
+            cuenta_id = account_map[met_str][0]
             
         rows_to_insert.append({
             'fecha': fecha_str,
             'concepto': str(concepto_val).strip(),
             'monto_neto': monto_float,
             'rubro': rubro_str,
+            'subrubro': subrubro_str,
+            'concepto_detallado': concepto_det_str,
             'proyecto_id': proy_id,
             'deducible': deduc_str,
             'estado_facturacion': est_str,
@@ -319,7 +407,6 @@ def import_excel_expenses(file_bytes):
             'uuid_fiscal': uuid_str
         })
 
-    # Si hay errores en alguna fila, no importamos nada para mantener consistencia transaccional
     if errors:
         return {
             'success': False,
@@ -327,7 +414,6 @@ def import_excel_expenses(file_bytes):
             'errors': errors
         }
         
-    # Insertar registros
     imported_count = 0
     for r in rows_to_insert:
         success, _ = add_gasto(
@@ -335,6 +421,8 @@ def import_excel_expenses(file_bytes):
             concepto=r['concepto'],
             monto_neto=r['monto_neto'],
             rubro=r['rubro'],
+            subrubro=r['subrubro'],
+            concepto_detallado=r['concepto_detallado'],
             proyecto_id=r['proyecto_id'],
             deducible=r['deducible'],
             estado_facturacion=r['estado_facturacion'],

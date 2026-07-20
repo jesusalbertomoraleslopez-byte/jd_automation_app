@@ -139,7 +139,7 @@ def render_header(title, subtitle):
 # Importación de módulos internos del proyecto
 import database as db
 from modules.xml_parser import parse_cfdi_xml
-from modules.excel_handler import generate_excel_template, import_excel_expenses
+from modules.excel_handler import CLASIFICACIONES, generate_excel_template, import_excel_expenses
 import modules.dashboards as dash
 
 # Crear directorio para almacenar comprobantes físicos
@@ -269,10 +269,11 @@ if menu == "🏠 Inicio & Registro":
                     g_fecha = st.date_input("Fecha de Gasto", datetime.date.today())
                     g_concepto = st.text_input("Concepto del Gasto", placeholder="Ej. Compra de relevadores y cableado")
                     g_monto = st.number_input("Monto Neto (IVA Incluido)", min_value=0.01, step=50.0, format="%.2f")
-                    g_rubro = st.selectbox(
-                        "Rubro de Gasto", 
-                        ['Materiales', 'Mano de obra', 'Supervisión', 'Gastos generales', 'Herramienta', 'Maquinaria']
-                    )
+                    g_rubro = st.selectbox("Rubro Principal", list(CLASIFICACIONES.keys()))
+                    subrubros_disponibles = list(CLASIFICACIONES[g_rubro].keys())
+                    g_subrubro = st.selectbox("Subrubro", subrubros_disponibles)
+                    conceptos_disponibles = CLASIFICACIONES[g_rubro][g_subrubro]
+                    g_concepto_detallado = st.selectbox("Concepto Detallado", conceptos_disponibles)
                     proyecto_options = dict(zip(df_p_activos['nombre'], df_p_activos['id']))
                     g_proy_name = st.selectbox("Proyecto Asociado", list(proyecto_options.keys()))
                     g_proy_id = proyecto_options[g_proy_name]
@@ -355,6 +356,8 @@ if menu == "🏠 Inicio & Registro":
                             concepto=g_concepto,
                             monto_neto=g_monto,
                             rubro=g_rubro,
+                            subrubro=g_subrubro,
+                            concepto_detallado=g_concepto_detallado,
                             proyecto_id=g_proy_id,
                             deducible=g_deducible,
                             estado_facturacion=g_estado_fact,
@@ -382,13 +385,14 @@ if menu == "🏠 Inicio & Registro":
                 
                 # Columnas resumidas
                 cols_to_show = [
-                    'id', 'fecha', 'concepto', 'monto_neto', 'rubro', 
+                    'id', 'fecha', 'concepto', 'monto_neto', 'rubro', 'subrubro', 'concepto_detallado',
                     'proyecto_nombre', 'deducible', 'estado_facturacion', 
                     'metodo_pago', 'cuenta_nombre', 'rfc_proveedor', 'uuid_fiscal'
                 ]
                 st.dataframe(df_g_disp[cols_to_show].rename(columns={
-                    'id': 'Folio', 'fecha': 'Fecha', 'concepto': 'Concepto', 
-                    'monto_neto': 'Monto Neto', 'rubro': 'Rubro', 
+                    'id': 'Folio', 'fecha': 'Fecha', 'concepto': 'Concepto Gral', 
+                    'monto_neto': 'Monto Neto', 'rubro': 'Rubro Principal', 
+                    'subrubro': 'Subrubro', 'concepto_detallado': 'Concepto Detallado',
                     'proyecto_nombre': 'Proyecto', 'deducible': 'Deducible', 
                     'estado_facturacion': 'Estatus Fact.', 'metodo_pago': 'Método Pago', 
                     'cuenta_nombre': 'Cuenta', 'rfc_proveedor': 'RFC Proveedor', 
@@ -614,19 +618,19 @@ elif menu == "💰 EBITDA & Reportes de Cuenta":
         total_ingresos = df_proy['monto_ingreso'].sum()
         
         # Gastos operativos
-        # Excluimos "Maquinaria" del cálculo de gastos operativos basándonos en la depreciación de maquinaria descrita
-        df_gastos_op = df_gastos[df_gastos['rubro'] != 'Maquinaria']
+        # Excluimos "Equipo Mayor y Renta" (maquinaria) del cálculo de gastos operativos
+        df_gastos_op = df_gastos[df_gastos['subrubro'] != 'Equipo Mayor y Renta']
         total_gastos_op = df_gastos_op['monto_neto'].sum()
         
         # Gastos excluidos
-        df_gastos_excl = df_gastos[df_gastos['rubro'] == 'Maquinaria']
+        df_gastos_excl = df_gastos[df_gastos['subrubro'] == 'Equipo Mayor y Renta']
         total_gastos_excl = df_gastos_excl['monto_neto'].sum()
         
         ebitda = total_ingresos - total_gastos_op
         
         col_e1, col_e2, col_e3 = st.columns(3)
         col_e1.metric("Ingresos de Proyectos", f"${total_ingresos:,.2f} MXN")
-        col_e2.metric("Gastos Operativos (excl. Maquinaria)", f"${total_gastos_op:,.2f} MXN")
+        col_e2.metric("Gastos Operativos (excl. Renta Equipo)", f"${total_gastos_op:,.2f} MXN")
         
         # Indicador de color para EBITDA positivo/negativo
         if ebitda >= 0:
@@ -652,14 +656,14 @@ elif menu == "💰 EBITDA & Reportes de Cuenta":
                 st.info("No hay gastos operativos registrados.")
                 
         with col_des2:
-            st.markdown("**Gastos Excluidos (Maquinaria/Activos Fijos):**")
+            st.markdown("**Gastos Excluidos (Renta de Maquinaria/Equipo Mayor):**")
             if not df_gastos_excl.empty:
-                df_ex_grouped = df_gastos_excl.groupby('rubro')['monto_neto'].sum().reset_index()
+                df_ex_grouped = df_gastos_excl.groupby('subrubro')['monto_neto'].sum().reset_index()
                 df_ex_grouped['monto_neto'] = df_ex_grouped['monto_neto'].map('${:,.2f}'.format)
-                df_ex_grouped.columns = ['Rubro Excluido', 'Monto Acumulado']
+                df_ex_grouped.columns = ['Subrubro Excluido', 'Monto Acumulado']
                 st.dataframe(df_ex_grouped, use_container_width=True, hide_index=True)
             else:
-                st.info("No hay gastos de Maquinaria registrados (exclusión de 0.00 MXN).")
+                st.info("No hay gastos de Renta de Maquinaria registrados (exclusión de 0.00 MXN).")
 
     with tab_export:
         st.subheader("Reportes Específicos por Tipo de Movimiento")
@@ -679,13 +683,14 @@ elif menu == "💰 EBITDA & Reportes de Cuenta":
                 
             # Columnas limpias para mostrar y exportar
             cols_clean = [
-                'fecha', 'concepto', 'monto_neto', 'rubro', 
+                'fecha', 'concepto', 'monto_neto', 'rubro', 'subrubro', 'concepto_detallado',
                 'proyecto_nombre', 'deducible', 'estado_facturacion', 
                 'cuenta_nombre', 'rfc_proveedor', 'uuid_fiscal'
             ]
             df_disp = df_subset[cols_clean].rename(columns={
-                'fecha': 'Fecha', 'concepto': 'Concepto', 
-                'monto_neto': 'Monto Neto', 'rubro': 'Rubro', 
+                'fecha': 'Fecha', 'concepto': 'Concepto Gral', 
+                'monto_neto': 'Monto Neto', 'rubro': 'Rubro Principal', 
+                'subrubro': 'Subrubro', 'concepto_detallado': 'Concepto Detallado',
                 'proyecto_nombre': 'Proyecto', 'deducible': 'Deducible', 
                 'estado_facturacion': 'Estatus Fact.', 'cuenta_nombre': 'Cuenta/Tarjeta', 
                 'rfc_proveedor': 'RFC Proveedor', 'uuid_fiscal': 'UUID'
