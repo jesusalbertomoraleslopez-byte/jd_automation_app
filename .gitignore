@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.streamlit/
+data/jd_finanzas.db
+data/comprobantes/xml_*
+data/comprobantes/pdf_*
+venv/
+.env
+.DS_Store
+.idea/
+.vscode/

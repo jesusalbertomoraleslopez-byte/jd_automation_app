@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Version="4.0" Total="45000.00">
+  <cfdi:Emisor Rfc="OMR900101AA1" Nombre="OMRON ELECTRONICS MEXICO" RegimenFiscal="601"/>
+  <cfdi:Receptor Rfc="JDA121212XYZ" Nombre="J&amp;D AUTOMATION INDUSTRIES" RegimenFiscal="601" UsoCFDI="G03"/>
+  <cfdi:Complemento>
+    <tfd:TimbreFiscalDigital xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigital" Version="1.1" UUID="E80F9C7D-8B41-4770-983C-AA0FBD452771"/>
+  </cfdi:Complemento>
+</cfdi:Comprobante>
