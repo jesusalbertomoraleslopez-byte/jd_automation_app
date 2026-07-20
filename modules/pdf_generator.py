@@ -87,9 +87,9 @@ def generar_pdf_gasto(gasto: dict) -> bytes:
         ('Fecha del Gasto:', gasto.get('fecha', '')),
         ('Concepto General:', gasto.get('concepto', '')),
         ('Monto Neto (IVA Incluido):', f"${float(gasto.get('monto_neto', 0)):,.2f} MXN"),
-        ('Proyecto Asociado:', gasto.get('proyecto_nombre', '—')),
+        ('Proyecto Asociado:', gasto.get('proyecto_nombre', 'N/A')),
         ('Método de Pago:', gasto.get('metodo_pago', '')),
-        ('Cuenta / Tarjeta:', gasto.get('cuenta_nombre', '—')),
+        ('Cuenta / Tarjeta:', gasto.get('cuenta_nombre', 'N/A')),
     ]
     for i, (lbl, val) in enumerate(fields):
         pdf.kv_row(lbl, val, shade=(i % 2 == 0))
@@ -97,9 +97,9 @@ def generar_pdf_gasto(gasto: dict) -> bytes:
     pdf.ln(4)
     pdf.section_title('2. CLASIFICACIÓN CONTABLE')
     clasif_fields = [
-        ('Rubro Principal:', gasto.get('rubro', '—') or '—'),
-        ('Subrubro:', gasto.get('subrubro', '—') or '—'),
-        ('Concepto Detallado:', gasto.get('concepto_detallado', '—') or '—'),
+        ('Rubro Principal:', gasto.get('rubro', 'N/A') or 'N/A'),
+        ('Subrubro:', gasto.get('subrubro', 'N/A') or 'N/A'),
+        ('Concepto Detallado:', gasto.get('concepto_detallado', 'N/A') or 'N/A'),
         ('Deducible / Facturable:', gasto.get('deducible', '')),
         ('Estado de Facturación:', gasto.get('estado_facturacion', '')),
     ]
@@ -110,8 +110,8 @@ def generar_pdf_gasto(gasto: dict) -> bytes:
         pdf.ln(4)
         pdf.section_title('3. DATOS FISCALES (CFDI / SAT)')
         fiscal_fields = [
-            ('RFC del Proveedor:', gasto.get('rfc_proveedor', '—')),
-            ('UUID / Folio Fiscal:', gasto.get('uuid_fiscal', '—')),
+            ('RFC del Proveedor:', gasto.get('rfc_proveedor', 'N/A')),
+            ('UUID / Folio Fiscal:', gasto.get('uuid_fiscal', 'N/A')),
         ]
         for i, (lbl, val) in enumerate(fiscal_fields):
             pdf.kv_row(lbl, val, shade=(i % 2 == 0))
@@ -131,7 +131,7 @@ def generar_pdf_gasto(gasto: dict) -> bytes:
     pdf.ln(6)
     pdf.set_font('Helvetica', 'I', 7)
     pdf.set_text_color(*COLOR_TEXT_LIGHT)
-    pdf.cell(0, 5, 'Documento generado automáticamente por el Sistema de Control Financiero J&D Automation Industries.', align='C')
+    pdf.cell(0, 5, 'Documento generado automaticamente por el Sistema de Control Financiero J&D Automation Industries.', align='C')
 
     return bytes(pdf.output())
 
@@ -185,7 +185,7 @@ def generar_pdf_tabla(df, titulo: str, columnas_rename: dict = None) -> bytes:
 
 
 def generar_pdf_manual() -> bytes:
-    """Genera el Manual de Operación completo en PDF."""
+    """Genera el Manual de Operacion completo en PDF."""
     pdf = JDPdf()
     pdf.add_page()
     pdf.set_auto_page_break(auto=True, margin=15)
@@ -194,67 +194,67 @@ def generar_pdf_manual() -> bytes:
     pdf.set_font('Helvetica', 'B', 20)
     pdf.set_text_color(*COLOR_CHARCOAL)
     pdf.ln(20)
-    pdf.cell(0, 12, 'MANUAL DE OPERACIÓN DEL SISTEMA', align='C', new_x='LMARGIN', new_y='NEXT')
+    pdf.cell(0, 12, 'MANUAL DE OPERACION DEL SISTEMA', align='C', new_x='LMARGIN', new_y='NEXT')
     pdf.set_font('Helvetica', '', 12)
     pdf.set_text_color(*COLOR_ORANGE)
-    pdf.cell(0, 8, 'Control Financiero Inteligente — J&D Automation Industries', align='C', new_x='LMARGIN', new_y='NEXT')
+    pdf.cell(0, 8, 'Control Financiero Inteligente - J&D Automation Industries', align='C', new_x='LMARGIN', new_y='NEXT')
     pdf.ln(4)
     pdf.set_font('Helvetica', '', 9)
     pdf.set_text_color(*COLOR_TEXT_LIGHT)
-    pdf.cell(0, 6, f'Versión 2.0   |   {datetime.datetime.now().strftime("%B %Y")}', align='C')
+    pdf.cell(0, 6, f'Version 2.0   |   {datetime.datetime.now().strftime("%B %Y")}', align='C')
     pdf.ln(20)
 
     # Secciones del manual
     secciones = [
-        ("1. Introducción",
-         "El Sistema de Control Financiero de J&D Automation Industries es una aplicación web desarrollada en Python/Streamlit "
-         "diseñada para centralizar, clasificar y analizar los egresos operativos y de proyectos de la empresa. "
-         "Permite la captura manual de gastos, importación masiva desde Excel, análisis EBITDA, dashboards interactivos "
-         "y generación de reportes en PDF con respaldo automático de cada transacción."),
+        ("1. Introduccion",
+         "El Sistema de Control Financiero de J&D Automation Industries es una aplicacion web desarrollada en Python/Streamlit "
+         "disenada para centralizar, clasificar y analizar los egresos operativos y de proyectos de la empresa. "
+         "Permite la captura manual de gastos, importacion masiva desde Excel, analisis EBITDA, dashboards interactivos "
+         "y generacion de reportes en PDF con respaldo automatico de cada transaccion."),
 
         ("2. Acceso y Roles de Usuario",
-         "La aplicación requiere autenticación con usuario y contraseña.\n"
-         "  • Administrador: Acceso total. Puede crear, editar y eliminar cualquier registro, gestionar usuarios "
-         "y acceder al módulo de Mantenimiento del Sistema.\n"
-         "  • Capturista: Puede registrar gastos, proyectos, cuentas y OCs. No puede eliminar registros.\n"
-         "  • Consultor: Acceso de solo lectura. Puede visualizar dashboards y descargar reportes.\n\n"
-         "Credenciales por defecto: admin / JD2024Admin. Cambie la contraseña en Módulo 8 → Gestión de Usuarios."),
+         "La aplicacion requiere autenticacion con usuario y contrasena.\n"
+         "  * Administrador: Acceso total. Puede crear, editar y eliminar cualquier registro, gestionar usuarios "
+         "y acceder al modulo de Mantenimiento del Sistema.\n"
+         "  * Capturista: Puede registrar gastos, proyectos, cuentas y OCs. No puede eliminar registros.\n"
+         "  * Consultor: Acceso de solo lectura. Puede visualizar dashboards y descargar reportes.\n\n"
+         "Credenciales por defecto: admin / JD2024Admin. Cambie la contrasena en Modulo 8 -> Gestion de Usuarios."),
 
-        ("3. Módulo 1 — Inicio & Registro",
+        ("3. Modulo 1 - Inicio & Registro",
          "Contiene 4 sub-secciones:\n"
-         "  1.1 Proyectos: Alta y gestión de proyectos con nombre, descripción y monto contratado.\n"
-         "  1.2 Cuentas & Tarjetas: Registro de métodos de pago (Tarjeta, Transferencia, Efectivo).\n"
-         "  1.3 Captura de Gasto: Formulario principal de registro de egresos con clasificación jerárquica "
-         "(Rubro → Subrubro → Concepto), validación de XML/CFDI del SAT, y generación automática de recibo PDF.\n"
-         "  1.4 Órdenes de Compra (Backorder): Registro y seguimiento de compromisos de pago futuros."),
+         "  1.1 Proyectos: Alta y gestion de proyectos con nombre, descripcion y monto contratado.\n"
+         "  1.2 Cuentas & Tarjetas: Registro de metodos de pago (Tarjeta, Transferencia, Efectivo).\n"
+         "  1.3 Captura de Gasto: Formulario principal de registro de egresos con clasificacion jerarquica "
+         "(Rubro -> Subrubro -> Concepto), validacion de XML/CFDI del SAT, y generacion automatica de recibo PDF.\n"
+         "  1.4 Ordenes de Compra (Backorder): Registro y seguimiento de compromisos de pago futuros."),
 
-        ("4. Clasificación Jerárquica de Gastos",
+        ("4. Clasificacion Jerarquica de Gastos",
          "Los gastos se clasifican en 3 niveles opcionales:\n"
-         "  Nivel 1 — Rubro Principal (ej. 'Mano de Obra y Personal')\n"
-         "  Nivel 2 — Subrubro (ej. 'Nómina Interna Operativa')\n"
-         "  Nivel 3 — Concepto Detallado (ej. 'Sueldo Base Técnicos')\n\n"
-         "Estos campos son opcionales: si el gasto no tiene una clasificación definida, puede dejarse en blanco. "
-         "El catálogo de clasificaciones es dinámico y puede administrarse en el Módulo 8 → Gestión de Clasificaciones."),
+         "  Nivel 1 - Rubro Principal (ej. 'Mano de Obra y Personal')\n"
+         "  Nivel 2 - Subrubro (ej. 'Nomina Interna Operativa')\n"
+         "  Nivel 3 - Concepto Detallado (ej. 'Sueldo Base Tecnicos')\n\n"
+         "Estos campos son opcionales: si el gasto no tiene una clasificacion definida, puede dejarse en blanco. "
+         "El catalogo de clasificaciones es dinamico y puede administrarse en el Modulo 8 -> Gestion de Clasificaciones."),
 
-        ("5. Módulo 2 — Carga Masiva (Excel)",
-         "Permite importar múltiples gastos en un solo archivo Excel.\n"
-         "  5.1 Descargue la plantilla desde el botón 'Descargar Plantilla'. Esta plantilla incluye las listas "
-         "desplegables validadas con los proyectos activos y catálogos vigentes.\n"
-         "  5.2 Llene la plantilla con los gastos y cargue el archivo. El sistema validará cada fila antes de importar."),
+        ("5. Modulo 2 - Carga Masiva (Excel)",
+         "Permite importar multiples gastos en un solo archivo Excel.\n"
+         "  5.1 Descargue la plantilla desde el boton 'Descargar Plantilla'. Esta plantilla incluye las listas "
+         "desplegables validadas con los proyectos activos y catalogos vigentes.\n"
+         "  5.2 Llene la plantilla con los gastos y cargue el archivo. El sistema validara cada fila antes de importar."),
 
-        ("6. Módulo 8 — Mantenimiento del Sistema (Solo Administrador)",
-         "  8.1 Gestión de Clasificaciones: CRUD completo para agregar, ver y eliminar Rubros, Subrubros y Conceptos.\n"
-         "  8.2 Gestión de Usuarios: Crear usuarios, asignar roles, activar/desactivar y cambiar contraseñas.\n"
-         "  8.3 Corrección de Registros: Edición directa de campos en gastos ya registrados.\n"
-         "  8.4 Limpieza de Base de Datos: Vaciado selectivo de tablas con confirmación doble.\n"
-         "  8.5 Explorador de Almacenamiento: Visualización y eliminación de archivos en el servidor."),
+        ("6. Modulo 8 - Mantenimiento del Sistema (Solo Administrador)",
+         "  8.1 Gestion de Clasificaciones: CRUD completo para agregar, ver y eliminar Rubros, Subrubros y Conceptos.\n"
+         "  8.2 Gestion de Usuarios: Crear usuarios, asignar roles, activar/desactivar y cambiar contrasenas.\n"
+         "  8.3 Correccion de Registros: Edicion directa de campos en gastos ya registrados.\n"
+         "  8.4 Limpieza de Base de Datos: Vaciado selectivo de tablas con confirmacion doble.\n"
+         "  8.5 Explorador de Almacenamiento: Visualizacion y eliminacion de archivos en el servidor."),
 
         ("7. Reglas Fiscales Homologadas",
-         "  • Todos los montos se ingresan como MONTO NETO CON IVA INCLUIDO.\n"
-         "  • Si el estado de facturación es 'Facturado', se recomienda adjuntar el XML (CFDI) y PDF de la factura. "
-         "El sistema extraerá automáticamente el RFC del proveedor, el UUID fiscal y verificará el total.\n"
-         "  • Los gastos bajo el subrubro 'Equipo Mayor y Renta' se excluyen del cálculo de EBITDA "
-         "(se tratan como depreciación de activos fijos)."),
+         "  * Todos los montos se ingresan como MONTO NETO CON IVA INCLUIDO.\n"
+         "  * Si el estado de facturación es 'Facturado', se recomienda adjuntar el XML (CFDI) y PDF de la factura. "
+         "El sistema extraera automaticamente el RFC del proveedor, el UUID fiscal y verificara el total.\n"
+         "  * Los gastos bajo el subrubro 'Equipo Mayor y Renta' se excluyen del calculo de EBITDA "
+         "(se tratan como depreciacion de activos fijos)."),
     ]
 
     for titulo_sec, contenido in secciones:
