@@ -17,8 +17,14 @@ st.set_page_config(
 
 # Estilo CSS Personalizado para la Identidad Visual de J&D
 st.markdown("""
+<meta name="google" content="notranslate">
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700;900&display=swap');
+    
+    /* Ocultar el input auxiliar de pegado de portapapeles */
+    div.element-container:has(input[placeholder="PASTE_IMAGE_PLACEHOLDER"]) {
+        display: none !important;
+    }
     
     /* Aplicar tipografía Nexa/Montserrat corporativa */
     html, body, .stWidget, .stMarkdown, p, span, li, label, input, button, select {
@@ -394,7 +400,85 @@ if menu.startswith("1."):
                             uploaded_pdf = st.file_uploader("Cargar PDF de la Factura", type=["pdf"], key="manual_pdf")
                     with col_img:
                         st.markdown("#### **Comprobante de Transferencia / Foto (Opcional)**")
-                        uploaded_img = st.file_uploader("📷 Subir Foto o Pegar del Portapapeles (Comprobante Celular / Captura)", type=["png", "jpg", "jpeg"], key="manual_img")
+                        uploaded_img = st.file_uploader("📷 Subir Foto o Seleccionar Archivo", type=["png", "jpg", "jpeg"], key="manual_img")
+                        
+                        st.markdown("##### **📋 Pegar desde Portapapeles (PC / Captura)**")
+                        import streamlit.components.v1 as components
+                        components.html(
+                            """
+                            <div id="paste-box" style="border: 2px dashed #FE8C29; padding: 15px; text-align: center; border-radius: 8px; font-family: sans-serif; color: #434E62; background: #FFF; cursor: pointer;">
+                                <button id="btn-paste" type="button" style="background: #FE8C29; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; font-family: sans-serif; font-size: 13px;">
+                                    📋 Pegar Captura del Portapapeles
+                                </button>
+                                <p style="font-size: 11px; margin-top: 8px; color: #8C96A6; line-height: 1.4;">
+                                    Haz clic en el botón (o selecciona este recuadro y presiona <b>Ctrl+V</b>) para pegar el comprobante copiado.
+                                </p>
+                                <img id="preview" style="max-width: 100%; max-height: 100px; display: none; margin: 10px auto 0 auto; border-radius: 4px; border: 1px solid #EDEDED;" />
+                            </div>
+                            <script>
+                                const btn = document.getElementById('btn-paste');
+                                const preview = document.getElementById('preview');
+                                
+                                function handleImage(base64) {
+                                    preview.src = base64;
+                                    preview.style.display = 'block';
+                                    
+                                    try {
+                                        const inputs = window.parent.document.querySelectorAll('input');
+                                        for (let input of inputs) {
+                                            if (input.placeholder === "PASTE_IMAGE_PLACEHOLDER") {
+                                                input.value = base64;
+                                                input.dispatchEvent(new Event('input', { bubbles: true }));
+                                                break;
+                                            }
+                                        }
+                                    } catch (e) {
+                                        console.log("Error: " + e.message);
+                                    }
+                                }
+                                
+                                document.addEventListener('paste', (e) => {
+                                    const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+                                    for (let item of items) {
+                                        if (item.kind === 'file' && item.type.startsWith('image/')) {
+                                            const blob = item.getAsFile();
+                                            const reader = new FileReader();
+                                            reader.onload = function(event) {
+                                                handleImage(event.target.result);
+                                            };
+                                            reader.readAsDataURL(blob);
+                                        }
+                                    }
+                                });
+                                
+                                btn.addEventListener('click', async () => {
+                                    try {
+                                        const items = await navigator.clipboard.read();
+                                        for (let item of items) {
+                                            for (let type of item.types) {
+                                                if (type.startsWith('image/')) {
+                                                    const blob = await item.getType(type);
+                                                    const reader = new FileReader();
+                                                    reader.onload = function(event) {
+                                                        handleImage(event.target.result);
+                                                    };
+                                                    reader.readAsDataURL(blob);
+                                                }
+                                            }
+                                        }
+                                    } catch (err) {
+                                        alert("Por favor, haz clic dentro del recuadro punteado y presiona Ctrl+V para pegar directamente.");
+                                    }
+                                });
+                            </script>
+                            """,
+                            height=170
+                        )
+                        pasted_img_base64 = st.text_input(
+                            "Base64 pegado", 
+                            placeholder="PASTE_IMAGE_PLACEHOLDER", 
+                            label_visibility="collapsed"
+                        )
 
                     xml_rfc = None
                     xml_uuid = None
@@ -428,6 +512,16 @@ if menu.startswith("1."):
                         img_file_saved = f"img_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}_{uploaded_img.name}"
                         with open(os.path.join(COMPROBANTES_DIR, img_file_saved), "wb") as f:
                             f.write(img_data)
+                    elif pasted_img_base64 and pasted_img_base64.startswith("data:image/"):
+                        try:
+                            import base64
+                            header, encoded = pasted_img_base64.split(",", 1)
+                            img_data = base64.b64decode(encoded)
+                            img_file_saved = f"img_pasted_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}.png"
+                            with open(os.path.join(COMPROBANTES_DIR, img_file_saved), "wb") as f:
+                                f.write(img_data)
+                        except Exception as e:
+                            st.error(f"Error al decodificar la imagen pegada: {str(e)}")
 
                     if xml_uuid:
                         st.info(f"📁 **Información Extraída del XML:**\n- RFC: `{xml_rfc}`\n- UUID: `{xml_uuid}`\n- Total XML: `${xml_total:,.2f}`")
