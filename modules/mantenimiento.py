@@ -90,9 +90,14 @@ def _render_gestion_clasificaciones():
             st.dataframe(df_disp, use_container_width=True, hide_index=True)
             
             # Opción para borrar
-            with st.expander("❌ Eliminar una Clasificación"):
+            st.markdown("---")
+            st.markdown("#### **🗑️ Eliminar una Clasificación**")
+            col_del_id, col_del_btn = st.columns([2, 1])
+            with col_del_id:
                 id_eliminar = st.number_input("Ingrese el ID de la clasificación a eliminar:", min_value=1, step=1, key="del_clas_id")
-                if st.button("Eliminar Clasificación", key="del_clas_btn"):
+            with col_del_btn:
+                st.markdown("<div style='height:28px;'></div>", unsafe_allow_html=True)
+                if st.button("Eliminar Clasificación", key="del_clas_btn", use_container_width=True):
                     success, msg = db.delete_clasificacion(id_eliminar)
                     if success:
                         st.success(msg)

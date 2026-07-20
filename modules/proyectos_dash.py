@@ -114,8 +114,8 @@ def render_pareto_proyecto(df_gastos: pd.DataFrame, proyecto_id=None, proyecto_n
                   annotation_text='80% (Regla de Pareto)', annotation_position='top right')
 
     fig.update_layout(
-        yaxis=dict(title='Monto (MXN)', titlefont_color='#434E62'),
-        yaxis2=dict(title='% Acumulado', overlaying='y', side='right', range=[0, 105], titlefont_color='#FE8C29'),
+        yaxis=dict(title=dict(text='Monto (MXN)', font=dict(color='#434E62'))),
+        yaxis2=dict(title=dict(text='% Acumulado', font=dict(color='#FE8C29')), overlaying='y', side='right', range=[0, 105]),
         xaxis_tickangle=-35,
         height=450,
         legend=dict(orientation='h', y=1.12),

@@ -182,14 +182,13 @@ def generate_excel_template():
     ws_gastos.add_data_validation(dv_met)
 
     # Asignar rangos de aplicación de validación (filas 2 a 500)
-    range_cells = "2:500"
-    dv_rubro.add(f"D{range_cells}")
-    dv_subrubro.add(f"E{range_cells}")
-    dv_concepto.add(f"F{range_cells}")
-    dv_proy.add(f"G{range_cells}")
-    dv_deduc.add(f"H{range_cells}")
-    dv_est.add(f"I{range_cells}")
-    dv_met.add(f"J{range_cells}")
+    dv_rubro.add("D2:D500")
+    dv_subrubro.add("E2:E500")
+    dv_concepto.add("F2:F500")
+    dv_proy.add("G2:G500")
+    dv_deduc.add("H2:H500")
+    dv_est.add("I2:I500")
+    dv_met.add("J2:J500")
 
     # Guardar en memoria y retornar bytes
     out = io.BytesIO()

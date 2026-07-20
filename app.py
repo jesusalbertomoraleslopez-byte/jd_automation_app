@@ -331,7 +331,7 @@ if menu.startswith("1."):
                             g_cuenta_id = cuenta_options[g_cuenta_name]
 
                     st.markdown("---")
-                    st.markdown("#### **Comprobantes SAT (Obligatorio para Facturado)**")
+                    st.markdown("#### **Comprobantes SAT (Opcional)**")
                     
                     col_file1, col_file2 = st.columns(2)
                     with col_file1:
@@ -375,11 +375,11 @@ if menu.startswith("1."):
                     btn_submit = st.form_submit_button("Guardar Gasto")
                     
                     if btn_submit:
-                        if g_estado_fact == "Facturado" and (not xml_uuid or not uploaded_pdf):
-                            st.error("❌ Regla Fiscal: Si el estado es 'Facturado', debe adjuntar XML (válido) y PDF.")
-                        elif not g_cuenta_id:
+                        if not g_cuenta_id:
                             st.error("❌ Debe seleccionar una cuenta origen válida.")
                         else:
+                            if g_estado_fact == "Facturado" and (not xml_uuid or not uploaded_pdf):
+                                st.warning("⚠️ Nota: Se registró el gasto en estado 'Facturado' sin adjuntar los comprobantes XML/PDF completos.")
                             fecha_str = g_fecha.strftime('%Y-%m-%d')
                             success, insert_id = db.add_gasto(
                                 fecha=fecha_str,
@@ -600,10 +600,10 @@ elif menu.startswith("3."):
     if len(date_range) == 2:
         start_date, end_date = date_range
         if not df_g_filtered.empty:
-            df_g_filtered = df_g_filtered[(df_g_filtered['fecha_dt'].date >= start_date) & (df_g_filtered['fecha_dt'].date <= end_date)]
+            df_g_filtered = df_g_filtered[(df_g_filtered['fecha_dt'].dt.date >= start_date) & (df_g_filtered['fecha_dt'].dt.date <= end_date)]
         if not df_b_filtered.empty:
             df_b_filtered['fecha_dt'] = pd.to_datetime(df_b_filtered['fecha_compromiso'])
-            df_b_filtered = df_b_filtered[(df_b_filtered['fecha_dt'].date >= start_date) & (df_b_filtered['fecha_dt'].date <= end_date)]
+            df_b_filtered = df_b_filtered[(df_b_filtered['fecha_dt'].dt.date >= start_date) & (df_b_filtered['fecha_dt'].dt.date <= end_date)]
             
     if proj_sel != "Todos":
         df_g_filtered = df_g_filtered[df_g_filtered['proyecto_nombre'] == proj_sel]
