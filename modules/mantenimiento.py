@@ -144,12 +144,33 @@ def _render_gestion_usuarios():
                 st.warning("Complete todos los campos del nuevo usuario (incluyendo el correo).")
 
         st.markdown("---")
-        st.markdown("#### **Cambiar Contraseña / Estado**")
+        st.markdown("#### **Modificar Usuario**")
         if not df_u.empty:
             user_select = st.selectbox("Seleccione Usuario", df_u['username'].tolist())
-            action = st.selectbox("Acción", ["Cambiar Contraseña", "Cambiar Estado (Activo/Inactivo)"])
+            user_row = df_u[df_u['username'] == user_select].iloc[0]
+            action = st.selectbox("Acción", ["Editar Datos (Nombre/Correo/Rol)", "Cambiar Contraseña", "Cambiar Estado (Activo/Inactivo)"])
             
-            if action == "Cambiar Contraseña":
+            if action == "Editar Datos (Nombre/Correo/Rol)":
+                mod_fullname = st.text_input("Nombre Completo", value=str(user_row['nombre_completo'] or ''))
+                mod_email = st.text_input("Correo Electrónico", value=str(user_row['email'] or ''))
+                roles = ["Administrador", "Capturista", "Consultor"]
+                try:
+                    rol_index = roles.index(user_row['rol'])
+                except ValueError:
+                    rol_index = 0
+                mod_rol = st.selectbox("Rol del Usuario", roles, index=rol_index)
+                
+                if st.button("Guardar Cambios", use_container_width=True):
+                    if mod_fullname and mod_email:
+                        success, msg = db.update_usuario_detalles(user_select, mod_fullname, mod_email, mod_rol)
+                        if success:
+                            st.success(msg)
+                            st.rerun()
+                        else:
+                            st.error(msg)
+                    else:
+                        st.warning("El nombre y el correo no pueden quedar vacíos.")
+            elif action == "Cambiar Contraseña":
                 new_pwd = st.text_input("Nueva Contraseña", type="password", key="change_pwd_input")
                 if st.button("Actualizar Contraseña", use_container_width=True):
                     if new_pwd:
@@ -161,7 +182,6 @@ def _render_gestion_usuarios():
                     else:
                         st.warning("Ingrese una contraseña válida.")
             else:
-                user_row = df_u[df_u['username'] == user_select].iloc[0]
                 current_status = "Activo" if user_row['activo'] == 1 else "Inactivo"
                 new_status_val = 0 if user_row['activo'] == 1 else 1
                 new_status_txt = "Desactivar" if user_row['activo'] == 1 else "Activar"

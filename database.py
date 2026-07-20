@@ -338,6 +338,19 @@ def cambiar_password(username, new_password):
     finally:
         conn.close()
 
+def update_usuario_detalles(username, nombre_completo, email, rol):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("UPDATE usuarios SET nombre_completo=?, email=?, rol=? WHERE username=?",
+                       (nombre_completo, email, rol, username))
+        conn.commit()
+        return True, "Datos del usuario actualizados con éxito."
+    except Exception as e:
+        return False, str(e)
+    finally:
+        conn.close()
+
 def toggle_usuario_activo(user_id, activo):
     conn = get_db_connection()
     cursor = conn.cursor()
