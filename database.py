@@ -41,10 +41,16 @@ def init_db():
         cursor.execute("DROP TABLE usuarios;")
         conn.commit()
 
+    # --- Migración automática: detectar esquema antiguo de proyectos (columna codigo) ---
+    if _table_exists(cursor, 'proyectos') and not _column_exists(cursor, 'proyectos', 'codigo'):
+        cursor.execute("DROP TABLE proyectos;")
+        conn.commit()
+
     # 1. Proyectos
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS proyectos (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        codigo TEXT NOT NULL UNIQUE,
         nombre TEXT NOT NULL UNIQUE,
         descripcion TEXT,
         monto_ingreso REAL DEFAULT 0.0,
@@ -132,12 +138,12 @@ def seed_demo_data(conn):
     cursor.execute("SELECT COUNT(*) FROM proyectos")
     if cursor.fetchone()[0] == 0:
         proyectos = [
-            ("Proyecto Alfa (Línea de Ensamble)", "Instalación de línea automatizada en Querétaro", 1500000.0, 1),
-            ("Proyecto Beta (Celdas Robotizadas)", "Integración de 3 brazos robóticos KUKA", 2400000.0, 1),
-            ("Mantenimiento Planta Toluca", "Mantenimiento preventivo anual de prensas", 450000.0, 1),
-            ("Proyecto Gamma (Modernización CNC)", "Retrofitting de fresadoras industriales", 850000.0, 0),
+            ("26010", "Proyecto Alfa (Línea de Ensamble)", "Instalación de línea automatizada en Querétaro", 1500000.0, 1),
+            ("26011", "Proyecto Beta (Celdas Robotizadas)", "Instalación de 3 brazos robóticos KUKA", 2400000.0, 1),
+            ("26012", "Mantenimiento Planta Toluca", "Mantenimiento preventivo anual de prensas", 450000.0, 1),
+            ("26013", "Proyecto Gamma (Modernización CNC)", "Retrofitting de fresadoras industriales", 850000.0, 0),
         ]
-        cursor.executemany("INSERT INTO proyectos (nombre, descripcion, monto_ingreso, activo) VALUES (?, ?, ?, ?)", proyectos)
+        cursor.executemany("INSERT INTO proyectos (codigo, nombre, descripcion, monto_ingreso, activo) VALUES (?, ?, ?, ?, ?)", proyectos)
 
     # Cuentas
     cursor.execute("SELECT COUNT(*) FROM cuentas")
@@ -369,9 +375,9 @@ def toggle_usuario_activo(user_id, activo):
 def get_proyectos(only_active=False):
     conn = get_db_connection()
     if only_active:
-        df = pd.read_sql_query("SELECT * FROM proyectos WHERE activo=1 ORDER BY nombre", conn)
+        df = pd.read_sql_query("SELECT * FROM proyectos WHERE activo=1 ORDER BY codigo", conn)
     else:
-        df = pd.read_sql_query("SELECT * FROM proyectos ORDER BY nombre", conn)
+        df = pd.read_sql_query("SELECT * FROM proyectos ORDER BY codigo", conn)
     conn.close()
     return df
 
@@ -379,12 +385,22 @@ def add_proyecto(nombre, descripcion, monto_ingreso, activo):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        cursor.execute("INSERT INTO proyectos (nombre, descripcion, monto_ingreso, activo) VALUES (?, ?, ?, ?)",
-                       (nombre, descripcion, monto_ingreso, activo))
+        # Autogenerar código de 5 dígitos (empezando en 26010)
+        cursor.execute("SELECT MAX(CAST(codigo AS INTEGER)) FROM proyectos")
+        max_cod = cursor.fetchone()[0]
+        if max_cod is None:
+            new_codigo = 26010
+        else:
+            new_codigo = max_cod + 1
+            
+        codigo_str = str(new_codigo)
+        
+        cursor.execute("INSERT INTO proyectos (codigo, nombre, descripcion, monto_ingreso, activo) VALUES (?, ?, ?, ?, ?)",
+                       (codigo_str, nombre, descripcion, monto_ingreso, activo))
         conn.commit()
-        return True, f"Proyecto '{nombre}' creado."
+        return True, f"Proyecto '{nombre}' creado con código {codigo_str}."
     except sqlite3.IntegrityError:
-        return False, f"Ya existe un proyecto con el nombre '{nombre}'."
+        return False, f"Ya existe un proyecto con el nombre '{nombre}' o código duplicado."
     except Exception as e:
         return False, str(e)
     finally:

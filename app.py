@@ -268,7 +268,7 @@ if menu.startswith("1."):
                 df_p_disp = df_p.copy()
                 df_p_disp['activo'] = df_p_disp['activo'].map({1: 'Activo', 0: 'Inactivo'})
                 df_p_disp['monto_ingreso'] = df_p_disp['monto_ingreso'].map('${:,.2f}'.format)
-                df_p_disp.columns = ['ID', 'Nombre', 'Descripción', 'Ingreso Contratado (Neto)', 'Estado']
+                df_p_disp.columns = ['ID', 'Código', 'Nombre', 'Descripción', 'Ingreso Contratado (Neto)', 'Estado']
                 st.dataframe(df_p_disp, use_container_width=True, hide_index=True)
             else:
                 st.info("No hay proyectos registrados.")
@@ -403,7 +403,7 @@ if menu.startswith("1."):
                             g_subrubro = None
                             g_concepto_detallado = None
                             
-                        proyecto_options = dict(zip(df_p_activos['nombre'], df_p_activos['id']))
+                        proyecto_options = dict(zip('[' + df_p_activos['codigo'] + '] ' + df_p_activos['nombre'], df_p_activos['id']))
                         g_proy_name = st.selectbox("Proyecto Asociado", list(proyecto_options.keys()))
                         g_proy_id = proyecto_options[g_proy_name]
                         
@@ -696,7 +696,7 @@ if menu.startswith("1."):
             oc_monto = st.number_input("Monto de la OC (IVA Incluido)", min_value=0.0, step=100.0, format="%.2f")
             
             # Asociar a proyecto
-            proyecto_options_b = dict(zip(df_p_activos['nombre'], df_p_activos['id']))
+            proyecto_options_b = dict(zip('[' + df_p_activos['codigo'] + '] ' + df_p_activos['nombre'], df_p_activos['id']))
             oc_proy_name = st.selectbox("Proyecto Destino", list(proyecto_options_b.keys()), key="oc_proy_sel")
             oc_proy_id = proyecto_options_b[oc_proy_name]
             

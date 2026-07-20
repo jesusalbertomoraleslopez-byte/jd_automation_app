@@ -36,7 +36,7 @@ def generate_excel_template():
     
     # 2. Rellenar las listas en Listas_Config
     df_proy = get_proyectos(only_active=True)
-    proyectos = df_proy['nombre'].tolist() if not df_proy.empty else ["Sin Proyectos Activos"]
+    proyectos = ('[' + df_proy['codigo'] + '] ' + df_proy['nombre']).tolist() if not df_proy.empty else ["Sin Proyectos Activos"]
     
     # Extraer categorías planas del diccionario de 3 niveles
     rubros = list(CLASIFICACIONES.keys())
@@ -232,7 +232,7 @@ def import_excel_expenses(file_bytes):
 
     # Obtener catálogos para mapeos de IDs
     df_projects = get_proyectos()
-    project_map = dict(zip(df_projects['nombre'], df_projects['id']))
+    project_map = dict(zip('[' + df_projects['codigo'] + '] ' + df_projects['nombre'], df_projects['id']))
     
     df_accounts = get_cuentas()
     account_map = {}
