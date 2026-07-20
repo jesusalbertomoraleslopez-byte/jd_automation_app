@@ -17,6 +17,15 @@ def init_db():
     conn = get_db_connection()
     cursor = conn.cursor()
 
+    # Detectar y migrar esquema antiguo si la columna 'subrubro' no existe en 'gastos'
+    try:
+        cursor.execute("SELECT subrubro FROM gastos LIMIT 1")
+    except sqlite3.OperationalError:
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='gastos'")
+        if cursor.fetchone():
+            cursor.execute("DROP TABLE gastos;")
+            conn.commit()
+
     # 1. Tabla de Proyectos
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS proyectos (
