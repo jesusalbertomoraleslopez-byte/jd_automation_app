@@ -4,69 +4,23 @@ import pandas as pd
 from openpyxl import Workbook
 from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.styles import Font, PatternFill, Alignment
-from database import get_proyectos, get_cuentas, add_gasto
+from database import get_proyectos, get_cuentas, add_gasto, get_clasificaciones_dict
 
-# Estructura de clasificaciones jerárquicas de 3 niveles para J&D Automation Industries
-CLASIFICACIONES = {
-    "Mano de Obra y Personal": {
-        "Carga Social y Obligaciones Fiscales": [
-            "Pago IMSS/INFONAVIT", 
-            "Retención ISR Salarios", 
-            "Impuesto Sobre Nómina (ISN)", 
-            "Aportaciones a la AFORE"
-        ],
-        "Nómina Interna Operativa": [
-            "Sueldo Base Técnicos", 
-            "Horas Extra", 
-            "Primas Vacacionales y Aguinaldos", 
-            "Bonos de Proyecto"
-        ],
-        "Subcontrataciones y Destajos (Con IVA)": [
-            "Ingenieros Externos (PLC/CAD)", 
-            "Contratistas de Montaje", 
-            "Maquila/Torneado Externo", 
-            "Agencias REPSE"
-        ],
-        "Sueldos Administrativos y Supervisión": [
-            "Nómina Project Managers", 
-            "Sueldos Dirección y Administración"
-        ]
-    },
-    "Materiales y Suministros": {
-        "Componentes del Proyecto": [
-            "Relevadores y Cableado", 
-            "Pistones y Neumática", 
-            "Gabinete Eléctrico"
-        ],
-        "Consumibles de Taller": [
-            "Soldadura y Tornillería", 
-            "Cintas y EPP Menor"
-        ]
-    },
-    "Herramientas y Maquinaria": {
-        "Equipo Mayor y Renta": [
-            "Renta de Grúa Industrial", 
-            "Renta de Andamios y Plataformas", 
-            "Compra de Equipos CNC/Grandes"
-        ],
-        "Herramienta Menor": [
-            "Pinzas, Destornilladores, Brocas", 
-            "Multímetros y Calibradores"
-        ]
-    },
-    "Gastos Indirectos y Operación": {
-        "Logística y Viáticos de Campo": [
-            "Gasolina y Casetas", 
-            "Hoteles y Viáticos de Viaje", 
-            "Fletes y Envíos"
-        ],
-        "Servicios y Oficina": [
-            "Renta de Oficina / Taller", 
-            "Luz, Agua e Internet", 
-            "Papelería y Artículos de Oficina"
-        ]
-    }
-}
+class DynamicClasificaciones(dict):
+    def keys(self):
+        return get_clasificaciones_dict().keys()
+    def __getitem__(self, key):
+        return get_clasificaciones_dict()[key]
+    def __iter__(self):
+        return iter(get_clasificaciones_dict())
+    def __len__(self):
+        return len(get_clasificaciones_dict())
+    def items(self):
+        return get_clasificaciones_dict().items()
+    def __contains__(self, item):
+        return item in get_clasificaciones_dict()
+
+CLASIFICACIONES = DynamicClasificaciones()
 
 def generate_excel_template():
     """
