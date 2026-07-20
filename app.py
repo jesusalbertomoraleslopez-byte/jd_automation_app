@@ -169,6 +169,7 @@ def generar_eml_bytes(to_email, subject, body_text, attachment_bytes=None, attac
     msg = MIMEMultipart()
     msg['From'] = 'control.financiero@jd-automation.com'
     msg['To'] = to_email
+    msg['Cc'] = 'david.alanis@jydautomation.com.mx, jesus.morales@jydautomation.com.mx, administracion@jydautomation.com.mx'
     msg['Subject'] = subject
     msg.attach(MIMEText(body_text, 'plain', 'utf-8'))
     if attachment_bytes and attachment_name:
