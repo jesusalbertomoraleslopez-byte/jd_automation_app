@@ -36,7 +36,7 @@ def render_gastos_dashboard(df_gastos):
             values='monto_neto', 
             names='rubro',
             color='rubro',
-            color_discrete_sequence=px.colors.qualitative.Prism,
+            color_discrete_sequence=['#434E62', '#FE8C29', '#8C96A6', '#FFA654', '#B4BCC6', '#FFC38C'],
             hole=0.4
         )
         fig_rubro.update_layout(margin=dict(t=10, b=10, l=10, r=10), height=300, showlegend=True)
@@ -50,7 +50,7 @@ def render_gastos_dashboard(df_gastos):
             values='monto_neto', 
             names='deducible',
             color='deducible',
-            color_discrete_map={'Sí': '#2b5c8f', 'No': '#e05c5c'},
+            color_discrete_map={'Sí': '#434E62', 'No': '#FE8C29'},
             hole=0.4
         )
         fig_deduc.update_layout(margin=dict(t=10, b=10, l=10, r=10), height=300, showlegend=True)
@@ -64,7 +64,7 @@ def render_gastos_dashboard(df_gastos):
             values='monto_neto', 
             names='metodo_pago',
             color='metodo_pago',
-            color_discrete_sequence=px.colors.qualitative.Safe,
+            color_discrete_sequence=['#434E62', '#FE8C29', '#8C96A6'],
             hole=0.4
         )
         fig_pago.update_layout(margin=dict(t=10, b=10, l=10, r=10), height=300, showlegend=True)
@@ -88,7 +88,7 @@ def render_gastos_dashboard(df_gastos):
         title="Gastos Mensuales por Rubro",
         labels={'monto_neto': 'Monto Neto (MXN)', 'Año-Mes': 'Mes de Registro'},
         barmode='stack',
-        color_discrete_sequence=px.colors.qualitative.Prism
+        color_discrete_sequence=['#434E62', '#FE8C29', '#8C96A6', '#FFA654', '#B4BCC6', '#FFC38C']
     )
     fig_line.update_layout(height=400, xaxis_tickangle=-45)
     st.plotly_chart(fig_line, use_container_width=True)
@@ -134,7 +134,7 @@ def render_backorder_dashboard(df_backorder):
             y='monto_oc',
             text='monto_oc',
             labels={'monto_oc': 'Monto Comprometido (MXN)', 'Mes_Compromiso': 'Mes de Compromiso de Pago'},
-            color_discrete_sequence=['#ff9f40']
+            color_discrete_sequence=['#FE8C29']
         )
         fig_proj.update_traces(texttemplate='$%{text:,.2f}', textposition='outside')
         fig_proj.update_layout(height=400, yaxis_range=[0, df_proj['monto_oc'].max() * 1.15])
@@ -189,14 +189,14 @@ def render_proyectos_dashboard(df_proyectos, df_gastos):
         x=df_merge['nombre'],
         y=df_merge['monto_ingreso'],
         name='Ingresos del Proyecto',
-        marker_color='#2b5c8f'
+        marker_color='#434E62'
     ))
     
     fig.add_trace(go.Bar(
         x=df_merge['nombre'],
         y=df_merge['total_gastos'],
         name='Gastos Asignados',
-        marker_color='#e05c5c'
+        marker_color='#FE8C29'
     ))
     
     fig.update_layout(

@@ -13,61 +13,128 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Estilo CSS Personalizado para Premium Aesthetics
+# Estilo CSS Personalizado para la Identidad Visual de J&D
 st.markdown("""
 <style>
-    /* Estilo general */
-    .reportview-container {
-        background: #f8f9fc;
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700;900&display=swap');
+    
+    /* Aplicar tipografía Nexa/Montserrat corporativa */
+    html, body, [class*="css"], .stWidget, .stMarkdown, p, span, li, label, input, button, select {
+        font-family: 'Montserrat', 'Inter', sans-serif !important;
+    }
+
+    /* Fondo gris claro (#EDEDED) */
+    .stApp {
+        background-color: #EDEDED;
     }
     
-    /* Encabezados */
-    h1, h2, h3 {
-        color: #1a365d;
-        font-family: 'Outfit', 'Inter', sans-serif;
+    /* Títulos y encabezados en Charcoal (#434E62) */
+    h1, h2, h3, h4, h5, h6 {
+        color: #434E62 !important;
+        font-family: 'Montserrat', sans-serif !important;
+        font-weight: 700 !important;
+    }
+    
+    /* Sidebar en Charcoal (#434E62) */
+    section[data-testid="stSidebar"] {
+        background-color: #434E62 !important;
+    }
+    section[data-testid="stSidebar"] h1, section[data-testid="stSidebar"] h2, section[data-testid="stSidebar"] p, section[data-testid="stSidebar"] span, section[data-testid="stSidebar"] label {
+        color: #FFFFFF !important;
+    }
+    
+    /* Selección del menú en el Sidebar */
+    section[data-testid="stSidebar"] [data-testid="stWidgetLabel"] {
+        color: #FFFFFF !important;
         font-weight: 700;
     }
     
-    /* Tarjetas KPI de métricas */
+    /* Pestañas (Tabs) */
+    button[data-baseweb="tab"] {
+        font-size: 15px !important;
+        font-weight: 600 !important;
+        color: #434E62 !important;
+    }
+    button[data-baseweb="tab"][aria-selected="true"] {
+        color: #FE8C29 !important;
+        border-bottom-color: #FE8C29 !important;
+    }
+
+    /* Tarjetas de Métricas (Monto Neto) */
     div[data-testid="stMetric"] {
-        background-color: #ffffff;
-        border: 1px solid #e2e8f0;
-        padding: 20px 15px;
-        border-radius: 12px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        background-color: #FFFFFF !important;
+        border: 1px solid #EDEDED !important;
+        border-left: 5px solid #FE8C29 !important; /* Acento UT Orange */
+        padding: 15px !important;
+        border-radius: 8px !important;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.03) !important;
     }
-    div[data-testid="stMetric"]:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    div[data-testid="stMetricValue"] > div {
+        color: #434E62 !important;
+        font-weight: 700 !important;
     }
-    
-    /* Botones principales */
-    div.stButton > button:first-child {
-        background-color: #1a365d;
-        color: white;
-        border-radius: 8px;
-        border: none;
-        padding: 8px 16px;
-        font-weight: 600;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        transition: background-color 0.3s;
-    }
-    div.stButton > button:first-child:hover {
-        background-color: #2b5c8f;
-        color: white;
-        border: none;
+    div[data-testid="stMetricLabel"] > div {
+        color: #8C96A6 !important;
+        font-size: 13px !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.5px !important;
     }
     
-    /* Sidebar */
-    section[data-testid="stSidebar"] {
-        background-color: #0f172a;
+    /* Formularios */
+    div[data-testid="stForm"] {
+        background-color: #FFFFFF !important;
+        border: 1px solid #EDEDED !important;
+        border-radius: 12px !important;
+        padding: 25px !important;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.02) !important;
     }
-    section[data-testid="stSidebar"] h1, section[data-testid="stSidebar"] h2, section[data-testid="stSidebar"] p, section[data-testid="stSidebar"] span {
-        color: #f8fafc !important;
+    
+    /* Bordes al enfocar inputs */
+    input[type="text"]:focus, input[type="number"]:focus, textarea:focus, select:focus {
+        border-color: #FE8C29 !important;
+        box-shadow: 0 0 0 1px #FE8C29 !important;
+    }
+    
+    /* Botones en UT Orange (#FE8C29) con texto Blanco (#FFFFFF) */
+    div.stButton > button:first-child, div.stFormSubmitButton > button:first-child {
+        background-color: #FE8C29 !important;
+        color: #FFFFFF !important;
+        font-weight: 700 !important;
+        border: none !important;
+        border-radius: 6px !important;
+        padding: 10px 24px !important;
+        box-shadow: 0 2px 5px rgba(254, 140, 41, 0.3) !important;
+        transition: transform 0.1s, background-color 0.2s !important;
+    }
+    div.stButton > button:first-child:hover, div.stFormSubmitButton > button:first-child:hover {
+        background-color: #e0771b !important;
+        color: #FFFFFF !important;
+    }
+    div.stButton > button:first-child:active, div.stFormSubmitButton > button:first-child:active {
+        transform: scale(0.98) !important;
+    }
+
+    /* Alertas */
+    div[data-testid="stAlert"] {
+        border-radius: 8px !important;
     }
 </style>
 """, unsafe_allow_html=True)
+
+def render_header(title, subtitle):
+    # Contenedor estilizado para el encabezado con la imagen corporativa en PNG transparente
+    with st.container():
+        col_logo, col_title = st.columns([1, 4])
+        with col_logo:
+            st.image("brand/logo_corporativo.png", width=160)
+        with col_title:
+            st.markdown(f"""
+            <div style="border-left: 3px solid #FE8C29; padding-left: 20px; margin-top: 5px;">
+              <h2 style="margin: 0; color: #434E62; font-family: 'Montserrat', sans-serif; font-size: 24px; font-weight: 700;">{title}</h2>
+              <p style="margin: 3px 0 0 0; color: #8C96A6; font-family: 'Montserrat', sans-serif; font-size: 13px;">{subtitle}</p>
+            </div>
+            """, unsafe_allow_html=True)
+
 
 # Importación de módulos internos del proyecto
 import database as db
@@ -84,9 +151,8 @@ if 'expense_submitted' not in st.session_state:
     st.session_state['expense_submitted'] = False
 
 # --- BARRA LATERAL / NAVEGACIÓN ---
-st.sidebar.image("https://img.icons8.com/color/96/000000/settings-configure.png", width=70)
-st.sidebar.title("J&D Automation")
-st.sidebar.caption("Sistemas de Automatización y Control")
+st.sidebar.image("brand/logo_blanco.png", use_container_width=True)
+st.sidebar.markdown("<h3 style='color: #FFFFFF; text-align: center; margin-top:0; font-family:\"Montserrat\"; font-size: 18px;'>Control Financiero</h3>", unsafe_allow_html=True)
 st.sidebar.markdown("---")
 
 menu = st.sidebar.radio(
@@ -106,8 +172,8 @@ st.sidebar.info(
 
 # --- MÓDULO 1: INICIO Y REGISTRO ---
 if menu == "🏠 Inicio & Registro":
-    st.title("🏠 Control de Registro - J&D Automation Industries")
-    st.markdown("Gestione los proyectos activos, cuentas de pago y capture los gastos de la operación diaria.")
+    render_header("Control de Registro", "Gestione proyectos, cuentas y capture los gastos de la operación diaria.")
+
     
     tab_proyectos, tab_cuentas, tab_gastos, tab_backorder = st.tabs([
         "📁 Proyectos", 
@@ -418,8 +484,7 @@ if menu == "🏠 Inicio & Registro":
 
 # --- MÓDULO 2: CARGA MASIVA (EXCEL) ---
 elif menu == "📂 Carga Masiva (Excel)":
-    st.title("📂 Carga Masiva de Gastos Diarios")
-    st.markdown("Descargue la plantilla configurada con las validaciones del SAT e importe múltiples registros a la vez.")
+    render_header("Carga Masiva (Excel)", "Descargue la plantilla de validación y cargue los gastos diarios de forma transaccional.")
     
     col_d1, col_d2 = st.columns([1, 2])
     
@@ -461,8 +526,7 @@ elif menu == "📂 Carga Masiva (Excel)":
 
 # --- MÓDULO 3: DASHBOARDS INTERACTIVOS ---
 elif menu == "📊 Dashboards Interactivos":
-    st.title("📊 Dashboards de Análisis Financiero")
-    st.markdown("Visualice reportes operativos y estratégicos de J&D Automation Industries.")
+    render_header("Dashboards de Análisis Financiero", "Visualice reportes operativos y estratégicos de J&D Automation Industries.")
     
     # Cargar datos base
     df_gastos_base = db.get_gastos_df()
@@ -533,8 +597,7 @@ elif menu == "📊 Dashboards Interactivos":
 
 # --- MÓDULO 4: EBITDA & REPORTES ---
 elif menu == "💰 EBITDA & Reportes de Cuenta":
-    st.title("💰 Análisis EBITDA e Historial de Cuentas")
-    st.markdown("Calcule el rendimiento operativo del negocio y exporte reportes detallados por método de pago.")
+    render_header("EBITDA & Reportes de Cuenta", "Calcule el rendimiento operativo de la empresa y exporte reportes por método de pago.")
     
     df_gastos = db.get_gastos_df()
     df_proy = db.get_proyectos()
