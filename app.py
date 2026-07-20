@@ -26,6 +26,31 @@ st.markdown("""
         display: none !important;
     }
     
+    /* Estilizar botón de File Uploader para decir "📥 Carga" */
+    div[data-testid="stFileUploaderDropzone"] button {
+        font-size: 0 !important;
+        line-height: 0 !important;
+        padding: 8px 16px !important;
+        background-color: #FFFFFF !important;
+        border: 1px solid #FE8C29 !important;
+        border-radius: 4px !important;
+        transition: all 0.3s ease !important;
+    }
+    div[data-testid="stFileUploaderDropzone"] button:hover {
+        background-color: #FFE6D5 !important;
+    }
+    div[data-testid="stFileUploaderDropzone"] button * {
+        display: none !important;
+    }
+    div[data-testid="stFileUploaderDropzone"] button::before {
+        content: "📥 Carga" !important;
+        font-size: 14px !important;
+        font-weight: 600 !important;
+        visibility: visible !important;
+        display: block !important;
+        color: #434E62 !important;
+    }
+    
     /* Aplicar tipografía Nexa/Montserrat corporativa */
     html, body, .stWidget, .stMarkdown, p, span, li, label, input, button, select {
         font-family: 'Montserrat', 'Inter', sans-serif !important;
