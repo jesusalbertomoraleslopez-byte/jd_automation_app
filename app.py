@@ -18,7 +18,7 @@ st.markdown("""
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700;900&display=swap');
     
     /* Aplicar tipografía Nexa/Montserrat corporativa */
-    html, body, [class*="css"], .stWidget, .stMarkdown, p, span, li, label, input, button, select {
+    html, body, .stWidget, .stMarkdown, p, span, li, label, input, button, select {
         font-family: 'Montserrat', 'Inter', sans-serif !important;
     }
 
@@ -331,19 +331,24 @@ if menu.startswith("1."):
                             g_cuenta_id = cuenta_options[g_cuenta_name]
 
                     st.markdown("---")
-                    st.markdown("#### **Comprobantes SAT (Opcional)**")
-                    
-                    col_file1, col_file2 = st.columns(2)
-                    with col_file1:
-                        uploaded_xml = st.file_uploader("Cargar XML de la Factura (CFDI)", type=["xml"], key="manual_xml")
-                    with col_file2:
-                        uploaded_pdf = st.file_uploader("Cargar PDF de la Factura", type=["pdf"], key="manual_pdf")
+                    col_sat, col_img = st.columns(2)
+                    with col_sat:
+                        st.markdown("#### **Comprobantes SAT (Opcional)**")
+                        col_file1, col_file2 = st.columns(2)
+                        with col_file1:
+                            uploaded_xml = st.file_uploader("Cargar XML de la Factura (CFDI)", type=["xml"], key="manual_xml")
+                        with col_file2:
+                            uploaded_pdf = st.file_uploader("Cargar PDF de la Factura", type=["pdf"], key="manual_pdf")
+                    with col_img:
+                        st.markdown("#### **Comprobante de Transferencia / Foto (Opcional)**")
+                        uploaded_img = st.file_uploader("📷 Subir Foto o Pegar del Portapapeles (Comprobante Celular / Captura)", type=["png", "jpg", "jpeg"], key="manual_img")
 
                     xml_rfc = None
                     xml_uuid = None
                     xml_total = None
                     xml_file_saved = None
                     pdf_file_saved = None
+                    img_file_saved = None
                     
                     if uploaded_xml:
                         xml_data = uploaded_xml.read()
@@ -364,6 +369,12 @@ if menu.startswith("1."):
                         pdf_file_saved = f"pdf_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}_{uploaded_pdf.name}"
                         with open(os.path.join(COMPROBANTES_DIR, pdf_file_saved), "wb") as f:
                             f.write(pdf_data)
+
+                    if uploaded_img:
+                        img_data = uploaded_img.read()
+                        img_file_saved = f"img_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}_{uploaded_img.name}"
+                        with open(os.path.join(COMPROBANTES_DIR, img_file_saved), "wb") as f:
+                            f.write(img_data)
 
                     if xml_uuid:
                         st.info(f"📁 **Información Extraída del XML:**\n- RFC: `{xml_rfc}`\n- UUID: `{xml_uuid}`\n- Total XML: `${xml_total:,.2f}`")
@@ -396,7 +407,8 @@ if menu.startswith("1."):
                                 rfc_proveedor=xml_rfc,
                                 uuid_fiscal=xml_uuid,
                                 xml_filename=xml_file_saved,
-                                pdf_filename=None # Se actualizará con el PDF de respaldo generado a continuación
+                                pdf_filename=None,
+                                comprobante_img_filename=img_file_saved
                             )
                             
                             if success:
@@ -442,15 +454,23 @@ if menu.startswith("1."):
             st.markdown("#### **Gastos Recientes**")
             df_g = db.get_gastos_df()
             if not df_g.empty:
+                # Sumatoria sub-total
+                subtotal_gastos = df_g['monto_neto'].sum()
+                
+                col_sub1, col_sub2 = st.columns([1, 3])
+                with col_sub1:
+                    st.metric("Subtotal de Gastos", f"${subtotal_gastos:,.2f} MXN")
+                
                 df_g_disp = df_g.copy()
                 df_g_disp['monto_neto'] = df_g_disp['monto_neto'].map('${:,.2f}'.format)
+                df_g_disp['Foto'] = df_g_disp['comprobante_img_filename'].apply(lambda x: '📷 Sí' if x else 'No')
                 
                 cols_to_show = [
                     'id', 'fecha', 'concepto', 'monto_neto', 'rubro', 'subrubro', 'concepto_detallado',
                     'proyecto_nombre', 'deducible', 'estado_facturacion', 
-                    'metodo_pago', 'cuenta_nombre', 'rfc_proveedor', 'uuid_fiscal'
+                    'metodo_pago', 'cuenta_nombre', 'rfc_proveedor', 'uuid_fiscal', 'Foto'
                 ]
-                st.dataframe(df_g_disp[cols_to_show].rename(columns={
+                df_renamed = df_g_disp[cols_to_show].rename(columns={
                     'id': 'Folio', 'fecha': 'Fecha', 'concepto': 'Concepto Gral', 
                     'monto_neto': 'Monto Neto', 'rubro': 'Rubro Principal', 
                     'subrubro': 'Subrubro', 'concepto_detallado': 'Concepto Detallado',
@@ -458,7 +478,28 @@ if menu.startswith("1."):
                     'estado_facturacion': 'Estatus Fact.', 'metodo_pago': 'Método Pago', 
                     'cuenta_nombre': 'Cuenta/Tarjeta', 'rfc_proveedor': 'RFC Proveedor', 
                     'uuid_fiscal': 'UUID'
-                }), use_container_width=True, hide_index=True)
+                })
+                
+                # Resaltar filas del día de hoy en color naranja suave (#FFE6D5)
+                today_str = datetime.date.today().strftime('%Y-%m-%d')
+                def style_row(row):
+                    if row['Fecha'] == today_str:
+                        return ['background-color: #FFE6D5; color: #434E62; font-weight: bold;'] * len(row)
+                    return [''] * len(row)
+                
+                styler = df_renamed.style.apply(style_row, axis=1)
+                st.dataframe(styler, use_container_width=True, hide_index=True)
+                
+                # Visualización de comprobante de imagen
+                df_with_img = df_g[df_g['comprobante_img_filename'].notna() & (df_g['comprobante_img_filename'] != '')]
+                if not df_with_img.empty:
+                    with st.expander("📷 Visualizar Comprobante de Transferencia / Fotos"):
+                        img_select_opts = dict(zip(df_with_img['id'].astype(str) + " - " + df_with_img['concepto'], df_with_img['comprobante_img_filename']))
+                        selected_img_key = st.selectbox("Seleccione Gasto para ver la foto:", list(img_select_opts.keys()))
+                        selected_img_file = img_select_opts[selected_img_key]
+                        img_path = os.path.join(COMPROBANTES_DIR, selected_img_file)
+                        if os.path.exists(img_path):
+                            st.image(img_path, caption=f"Comprobante del Gasto: {selected_img_key}", use_container_width=True)
             else:
                 st.info("No hay gastos registrados.")
 

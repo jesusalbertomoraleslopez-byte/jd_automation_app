@@ -32,7 +32,7 @@ def init_db():
     cursor = conn.cursor()
 
     # --- Migración automática: detectar esquema antiguo de gastos ---
-    if _table_exists(cursor, 'gastos') and not _column_exists(cursor, 'gastos', 'subrubro'):
+    if _table_exists(cursor, 'gastos') and (not _column_exists(cursor, 'gastos', 'subrubro') or not _column_exists(cursor, 'gastos', 'comprobante_img_filename')):
         cursor.execute("DROP TABLE gastos;")
         conn.commit()
 
@@ -83,6 +83,7 @@ def init_db():
         uuid_fiscal TEXT,
         xml_filename TEXT,
         pdf_filename TEXT,
+        comprobante_img_filename TEXT,
         FOREIGN KEY (proyecto_id) REFERENCES proyectos(id) ON DELETE SET NULL,
         FOREIGN KEY (cuenta_id) REFERENCES cuentas(id) ON DELETE SET NULL
     );''')
@@ -419,7 +420,7 @@ def get_gastos_df():
                p.nombre as proyecto_nombre, g.proyecto_id,
                g.deducible, g.estado_facturacion, g.metodo_pago,
                c.nombre as cuenta_nombre, g.cuenta_id,
-               g.rfc_proveedor, g.uuid_fiscal, g.xml_filename, g.pdf_filename
+               g.rfc_proveedor, g.uuid_fiscal, g.xml_filename, g.pdf_filename, g.comprobante_img_filename
         FROM gastos g
         LEFT JOIN proyectos p ON g.proyecto_id = p.id
         LEFT JOIN cuentas c ON g.cuenta_id = c.id
@@ -431,17 +432,17 @@ def get_gastos_df():
 
 def add_gasto(fecha, concepto, monto_neto, proyecto_id, deducible, estado_facturacion,
               metodo_pago, cuenta_id, rubro=None, subrubro=None, concepto_detallado=None,
-              rfc_proveedor=None, uuid_fiscal=None, xml_filename=None, pdf_filename=None):
+              rfc_proveedor=None, uuid_fiscal=None, xml_filename=None, pdf_filename=None, comprobante_img_filename=None):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
         cursor.execute("""INSERT INTO gastos
             (fecha, concepto, monto_neto, rubro, subrubro, concepto_detallado, proyecto_id,
-             deducible, estado_facturacion, metodo_pago, cuenta_id, rfc_proveedor, uuid_fiscal, xml_filename, pdf_filename)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+             deducible, estado_facturacion, metodo_pago, cuenta_id, rfc_proveedor, uuid_fiscal, xml_filename, pdf_filename, comprobante_img_filename)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (fecha, concepto, monto_neto, rubro or None, subrubro or None, concepto_detallado or None,
              proyecto_id, deducible, estado_facturacion, metodo_pago, cuenta_id,
-             rfc_proveedor, uuid_fiscal, xml_filename, pdf_filename))
+             rfc_proveedor, uuid_fiscal, xml_filename, pdf_filename, comprobante_img_filename))
         conn.commit()
         return True, cursor.lastrowid
     except Exception as e:
