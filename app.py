@@ -164,6 +164,7 @@ import modules.proyectos_dash as proy_dash
 import modules.industria40 as i40
 import modules.manual as man
 import modules.mantenimiento as maint
+import modules.flujo_caja as flujo
 
 def generar_eml_bytes(to_email, subject, body_text, attachment_bytes=None, attachment_name=None):
     msg = MIMEMultipart()
@@ -851,7 +852,7 @@ elif menu.startswith("4."):
     df_gastos = db.get_gastos_df()
     df_proy = db.get_proyectos()
     
-    tab_ebitda, tab_export = st.tabs(["📊 4.1 Cálculo de EBITDA", "📥 4.2 Exportar Reportes"])
+    tab_ebitda, tab_export, tab_flujo = st.tabs(["📊 4.1 Cálculo de EBITDA", "📥 4.2 Exportar Reportes", "📅 4.3 Flujo de Caja & Proyección"])
     
     with tab_ebitda:
         st.subheader("Cálculo del EBITDA")
@@ -1015,6 +1016,9 @@ elif menu.startswith("4."):
         with tab_cash:
             df_cash = df_gastos[df_gastos['metodo_pago'] == 'Efectivo']
             render_export_section(df_cash, "movimientos_efectivo")
+            
+        with tab_flujo:
+            flujo.render_flujo_caja_tab()
 
 # ─── MÓDULO 5: PROYECTOS — ESTADO & PARETO ───────────────────────────────────
 elif menu.startswith("5."):

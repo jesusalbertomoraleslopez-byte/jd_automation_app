@@ -125,6 +125,31 @@ def init_db():
         activo INTEGER DEFAULT 1
     );''')
 
+    # 7. Gastos programados
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS gastos_programados (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        concepto TEXT NOT NULL,
+        monto REAL NOT NULL,
+        fecha_compromiso TEXT NOT NULL,
+        categoria TEXT NOT NULL,
+        recurrente INTEGER DEFAULT 0,
+        frecuencia TEXT CHECK(frecuencia IN ('Mensual', 'Bimestral', 'Única')),
+        estado TEXT CHECK(estado IN ('Pendiente', 'Pagado')) DEFAULT 'Pendiente'
+    );''')
+
+    # 8. Ingresos programados
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS ingresos_programados (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        proyecto_id INTEGER,
+        concepto TEXT NOT NULL,
+        monto REAL NOT NULL,
+        fecha_esperada TEXT NOT NULL,
+        estado TEXT CHECK(estado IN ('Pendiente', 'Cobrado')) DEFAULT 'Pendiente',
+        FOREIGN KEY (proyecto_id) REFERENCES proyectos(id) ON DELETE SET NULL
+    );''')
+
     conn.commit()
     seed_demo_data(conn)
     conn.close()
@@ -231,6 +256,39 @@ def seed_demo_data(conn):
         pwd_c = bcrypt.hashpw("captura123".encode(), bcrypt.gensalt()).decode()
         cursor.execute("INSERT INTO usuarios (username, password_hash, password_plain, nombre_completo, email, rol, activo) VALUES (?, ?, ?, ?, ?, ?, ?)",
                        ("capturista", pwd_c, "captura123", "Capturista Demo", "captura@jd-automation.com", "Capturista", 1))
+
+    # Gastos programados por defecto
+    cursor.execute("SELECT COUNT(*) FROM gastos_programados")
+    if cursor.fetchone()[0] == 0:
+        gastos = [
+            ("Renta Oficinas J&D", 25000.0, "2026-07-28", "Servicios", 1, "Mensual", "Pendiente"),
+            ("Renta Oficinas J&D", 25000.0, "2026-08-28", "Servicios", 1, "Mensual", "Pendiente"),
+            ("Renta Oficinas J&D", 25000.0, "2026-09-28", "Servicios", 1, "Mensual", "Pendiente"),
+            ("Pago IMSS / Infonavit", 48500.0, "2026-07-17", "IMSS", 1, "Mensual", "Pagado"),
+            ("Pago IMSS / Infonavit", 48500.0, "2026-08-17", "IMSS", 1, "Mensual", "Pendiente"),
+            ("Pago IMSS / Infonavit", 48500.0, "2026-09-17", "IMSS", 1, "Mensual", "Pendiente"),
+            ("SAT - Declaración Mensual", 75000.0, "2026-07-17", "SAT", 1, "Mensual", "Pagado"),
+            ("SAT - Declaración Mensual", 82000.0, "2026-08-17", "SAT", 1, "Mensual", "Pendiente"),
+            ("SAT - Declaración Mensual", 78000.0, "2026-09-17", "SAT", 1, "Mensual", "Pendiente"),
+            ("Nómina Operativa J&D", 120000.0, "2026-07-30", "Nómina", 1, "Mensual", "Pendiente"),
+            ("Nómina Operativa J&D", 120000.0, "2026-08-15", "Nómina", 1, "Mensual", "Pendiente"),
+            ("Nómina Operativa J&D", 120000.0, "2026-08-30", "Nómina", 1, "Mensual", "Pendiente"),
+            ("Nómina Operativa J&D", 120000.0, "2026-09-15", "Nómina", 1, "Mensual", "Pendiente"),
+            ("Nómina Operativa J&D", 120000.0, "2026-09-30", "Nómina", 1, "Mensual", "Pendiente"),
+        ]
+        cursor.executemany("INSERT INTO gastos_programados (concepto, monto, fecha_compromiso, categoria, recurrente, frecuencia, estado) VALUES (?, ?, ?, ?, ?, ?, ?)", gastos)
+
+    # Ingresos programados por defecto
+    cursor.execute("SELECT COUNT(*) FROM ingresos_programados")
+    if cursor.fetchone()[0] == 0:
+        ingresos = [
+            (1, "Anticipo 50% - Proyecto Alfa", 750000.0, "2026-07-15", "Cobrado"),
+            (1, "Hito 30% Diseño - Proyecto Alfa", 450000.0, "2026-08-15", "Pendiente"),
+            (2, "Anticipo 50% - Proyecto Beta", 1200000.0, "2026-07-20", "Cobrado"),
+            (2, "Entrega de Materiales 30% - Proyecto Beta", 720000.0, "2026-09-05", "Pendiente"),
+            (3, "Hito Preventivo Completo - Toluca", 450000.0, "2026-08-20", "Pendiente"),
+        ]
+        cursor.executemany("INSERT INTO ingresos_programados (proyecto_id, concepto, monto, fecha_esperada, estado) VALUES (?, ?, ?, ?, ?)", ingresos)
 
     conn.commit()
 
@@ -365,6 +423,111 @@ def toggle_usuario_activo(user_id, activo):
         cursor.execute("UPDATE usuarios SET activo=? WHERE id=?", (activo, user_id))
         conn.commit()
         return True, "Estado de usuario actualizado."
+    except Exception as e:
+        return False, str(e)
+    finally:
+        conn.close()
+
+# ─────────────────────────────────────────────
+# FUNCIONES DE FLUJO DE CAJA & PROGRAMACIÓN
+# ─────────────────────────────────────────────
+def get_gastos_programados_df():
+    conn = get_db_connection()
+    df = pd.read_sql_query("SELECT id, concepto, monto, fecha_compromiso, categoria, recurrente, frecuencia, estado FROM gastos_programados", conn)
+    conn.close()
+    return df
+
+def insert_gasto_programado(concepto, monto, fecha_compromiso, categoria, recurrente=0, frecuencia='Única', estado='Pendiente'):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "INSERT INTO gastos_programados (concepto, monto, fecha_compromiso, categoria, recurrente, frecuencia, estado) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (concepto, monto, fecha_compromiso, categoria, recurrente, frecuencia, estado)
+        )
+        conn.commit()
+        return True, "Gasto programado registrado con éxito."
+    except Exception as e:
+        return False, str(e)
+    finally:
+        conn.close()
+
+def update_gasto_programado_row(gasto_id, concepto, monto, fecha_compromiso, categoria, recurrente, frecuencia, estado):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "UPDATE gastos_programados SET concepto=?, monto=?, fecha_compromiso=?, categoria=?, recurrente=?, frecuencia=?, estado=? WHERE id=?",
+            (concepto, monto, fecha_compromiso, categoria, recurrente, frecuencia, estado, gasto_id)
+        )
+        conn.commit()
+        return True, "Gasto programado actualizado."
+    except Exception as e:
+        return False, str(e)
+    finally:
+        conn.close()
+
+def delete_gasto_programado(gasto_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("DELETE FROM gastos_programados WHERE id=?", (gasto_id,))
+        conn.commit()
+        return True, "Gasto programado eliminado."
+    except Exception as e:
+        return False, str(e)
+    finally:
+        conn.close()
+
+def get_ingresos_programados_df():
+    conn = get_db_connection()
+    # Include project name and code
+    query = """
+    SELECT ip.id, ip.proyecto_id, p.codigo || ' - ' || p.nombre as proyecto, ip.concepto, ip.monto, ip.fecha_esperada, ip.estado
+    FROM ingresos_programados ip
+    LEFT JOIN proyectos p ON ip.proyecto_id = p.id
+    """
+    df = pd.read_sql_query(query, conn)
+    conn.close()
+    return df
+
+def insert_ingreso_programado(proyecto_id, concepto, monto, fecha_esperada, estado='Pendiente'):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "INSERT INTO ingresos_programados (proyecto_id, concepto, monto, fecha_esperada, estado) VALUES (?, ?, ?, ?, ?)",
+            (proyecto_id, concepto, monto, fecha_esperada, estado)
+        )
+        conn.commit()
+        return True, "Ingreso programado registrado con éxito."
+    except Exception as e:
+        return False, str(e)
+    finally:
+        conn.close()
+
+def update_ingreso_programado_row(ingreso_id, proyecto_id, concepto, monto, fecha_esperada, estado):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "UPDATE ingresos_programados SET proyecto_id=?, concepto=?, monto=?, fecha_esperada=?, estado=? WHERE id=?",
+            (proyecto_id, concepto, monto, fecha_esperada, estado, ingreso_id)
+        )
+        conn.commit()
+        return True, "Ingreso programado actualizado."
+    except Exception as e:
+        return False, str(e)
+    finally:
+        conn.close()
+
+def delete_ingreso_programado(ingreso_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("DELETE FROM ingresos_programados WHERE id=?", (ingreso_id,))
+        conn.commit()
+        return True, "Ingreso programado eliminado."
     except Exception as e:
         return False, str(e)
     finally:
