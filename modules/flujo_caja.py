@@ -9,9 +9,8 @@ def render_flujo_caja_tab():
         "Proyecte la salud financiera de la empresa integrando ingresos programados, gastos de operación fijos y facturación en backorder."
     )
 
-    # 1. Obtener Cuentas para Saldo Inicial Real
-    df_accounts = db.get_cuentas()
-    saldo_inicial_real = df_accounts['saldo'].sum() if not df_accounts.empty else 0.0
+    # 1. Obtener Saldo Inicial Predeterminado
+    saldo_inicial_real = 500000.0
 
     col_init_bal, col_space = st.columns([1, 2])
     with col_init_bal:
@@ -20,7 +19,7 @@ def render_flujo_caja_tab():
             min_value=0.0,
             value=float(saldo_inicial_real),
             step=10000.0,
-            help="Suma total de los saldos actuales en todas las cuentas y tarjetas del sistema."
+            help="Suma inicial estimada de efectivo disponible en bancos y caja."
         )
 
     # 2. Calcular Periodos Mensuales
