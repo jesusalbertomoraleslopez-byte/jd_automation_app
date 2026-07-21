@@ -8,6 +8,7 @@ from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
 
 from PIL import Image
+from streamlit_paste_button import paste_image_button
 
 # Cargar ícono oficial de J&D
 FAVICON_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'brand', 'favicon_512.png')
@@ -51,7 +52,7 @@ st.markdown("""
         background-color: #FFFFFF !important;
         border: 2px dashed #FE8C29 !important;
         border-radius: 10px !important;
-        padding: 16px !important;
+        padding: 14px !important;
         box-shadow: 0 2px 8px rgba(0,0,0,0.02) !important;
         transition: all 0.3s ease !important;
     }
@@ -62,39 +63,56 @@ st.markdown("""
         background-color: #FFFDFB !important;
     }
 
-    /* Botón principal dentro del File Uploader */
+    /* Botón corporativo J&D (#FE8C29) dentro del File Uploader */
     section[data-testid="stFileUploaderDropzone"] button, 
     div[data-testid="stFileUploaderDropzone"] button,
     [data-testid="stFileUploader"] button {
         background-color: #FE8C29 !important;
-        color: #FFFFFF !important;
+        font-size: 0 !important; /* Ocultar texto nativo duplicado */
+        color: transparent !important;
+        border: none !important;
+        border-radius: 6px !important;
+        padding: 8px 24px !important;
+        box-shadow: 0 2px 5px rgba(254, 140, 41, 0.35) !important;
+        transition: all 0.2s ease !important;
+        position: relative !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+    
+    /* Ocultar absolutamente todos los elementos internos para evitar duplicaciones o encimado */
+    section[data-testid="stFileUploaderDropzone"] button *, 
+    div[data-testid="stFileUploaderDropzone"] button *,
+    [data-testid="stFileUploader"] button * {
+        display: none !important;
+        visibility: hidden !important;
+        font-size: 0 !important;
+        opacity: 0 !important;
+        width: 0 !important;
+        height: 0 !important;
+    }
+
+    /* Renderizar ÚNICAMENTE la etiqueta limpia "Cargar" */
+    section[data-testid="stFileUploaderDropzone"] button::after, 
+    div[data-testid="stFileUploaderDropzone"] button::after,
+    [data-testid="stFileUploader"] button::after {
+        content: "Cargar" !important;
         font-family: 'Montserrat', sans-serif !important;
         font-weight: 700 !important;
         font-size: 14px !important;
+        color: #FFFFFF !important;
+        display: inline-block !important;
+        visibility: visible !important;
         line-height: 1.4 !important;
-        border: none !important;
-        border-radius: 6px !important;
-        padding: 8px 22px !important;
-        box-shadow: 0 2px 5px rgba(254, 140, 41, 0.35) !important;
-        transition: all 0.2s ease !important;
     }
     
     section[data-testid="stFileUploaderDropzone"] button:hover, 
     div[data-testid="stFileUploaderDropzone"] button:hover,
     [data-testid="stFileUploader"] button:hover {
         background-color: #e0771b !important;
-        color: #FFFFFF !important;
         transform: translateY(-1px) !important;
         box-shadow: 0 4px 10px rgba(254, 140, 41, 0.45) !important;
-    }
-
-    /* Texto e íconos dentro del botón de carga en blanco brillante */
-    section[data-testid="stFileUploaderDropzone"] button *,
-    div[data-testid="stFileUploaderDropzone"] button *,
-    [data-testid="stFileUploader"] button * {
-        color: #FFFFFF !important;
-        font-weight: 700 !important;
-        font-size: 14px !important;
     }
     
     /* Instructivo de arrastrar y soltar */
@@ -543,7 +561,22 @@ Sistema de Control Financiero | J&D Automation Industries"""
                         
                     st.markdown("##### **4. Soporte Digital (CFDI / XML & Fotos)**")
                     xml_file = st.file_uploader("Adjuntar XML de Factura (CFDI)", type=["xml"])
-                    img_file = st.file_uploader("Adjuntar Foto / Comprobante (JPG, PNG)", type=["jpg", "jpeg", "png"])
+                    
+                    st.markdown("**Adjuntar Foto / Comprobante:**")
+                    col_up, col_paste = st.columns([3, 2])
+                    with col_up:
+                        img_file = st.file_uploader("Subir Imagen (JPG, PNG)", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
+                    with col_paste:
+                        paste_res = paste_image_button(
+                            label="📋 Pegar Imagen (Ctrl+V)",
+                            background_color="#434E62",
+                            hover_background_color="#2C3E50",
+                            color="#FFFFFF",
+                        )
+                    
+                    pasted_img = paste_res.image_data if (paste_res and paste_res.image_data is not None) else None
+                    if pasted_img is not None:
+                        st.image(pasted_img, caption="📷 Comprobante pegado desde el portapapeles", width=220)
                     
                     rfc_prov = None
                     uuid_fisc = None
@@ -579,6 +612,10 @@ Sistema de Control Financiero | J&D Automation Industries"""
                             img_path = os.path.join(COMPROBANTES_DIR, img_filename)
                             with open(img_path, "wb") as f:
                                 f.write(img_file.read())
+                        elif pasted_img is not None:
+                            img_filename = f"comprobante_pasted_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}.png"
+                            img_path = os.path.join(COMPROBANTES_DIR, img_filename)
+                            pasted_img.save(img_path, format="PNG")
                                 
                         xml_filename = None
                         if xml_file is not None and xml_info.get('valid', False):
