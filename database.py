@@ -36,8 +36,8 @@ def init_db():
         cursor.execute("DROP TABLE gastos;")
         conn.commit()
 
-    # --- Migración automática: detectar esquema antiguo de usuarios (columna email) ---
-    if _table_exists(cursor, 'usuarios') and not _column_exists(cursor, 'usuarios', 'email'):
+    # --- Migración automática: detectar esquema antiguo de usuarios (columna email o password_plain) ---
+    if _table_exists(cursor, 'usuarios') and (not _column_exists(cursor, 'usuarios', 'email') or not _column_exists(cursor, 'usuarios', 'password_plain')):
         cursor.execute("DROP TABLE usuarios;")
         conn.commit()
 
@@ -118,6 +118,7 @@ def init_db():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT NOT NULL UNIQUE,
         password_hash TEXT NOT NULL,
+        password_plain TEXT,
         nombre_completo TEXT,
         email TEXT,
         rol TEXT NOT NULL CHECK(rol IN ('Administrador', 'Capturista', 'Consultor')),
@@ -224,12 +225,12 @@ def seed_demo_data(conn):
     cursor.execute("SELECT COUNT(*) FROM usuarios")
     if cursor.fetchone()[0] == 0:
         pwd_hash = bcrypt.hashpw("JD2024Admin".encode(), bcrypt.gensalt()).decode()
-        cursor.execute("INSERT INTO usuarios (username, password_hash, nombre_completo, email, rol, activo) VALUES (?, ?, ?, ?, ?, ?)",
-                       ("admin", pwd_hash, "Administrador J&D", "admin@jd-automation.com", "Administrador", 1))
+        cursor.execute("INSERT INTO usuarios (username, password_hash, password_plain, nombre_completo, email, rol, activo) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                       ("admin", pwd_hash, "JD2024Admin", "Administrador J&D", "admin@jd-automation.com", "Administrador", 1))
         # Usuario demo capturista
         pwd_c = bcrypt.hashpw("captura123".encode(), bcrypt.gensalt()).decode()
-        cursor.execute("INSERT INTO usuarios (username, password_hash, nombre_completo, email, rol, activo) VALUES (?, ?, ?, ?, ?, ?)",
-                       ("capturista", pwd_c, "Capturista Demo", "captura@jd-automation.com", "Capturista", 1))
+        cursor.execute("INSERT INTO usuarios (username, password_hash, password_plain, nombre_completo, email, rol, activo) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                       ("capturista", pwd_c, "captura123", "Capturista Demo", "captura@jd-automation.com", "Capturista", 1))
 
     conn.commit()
 
@@ -311,7 +312,7 @@ def verificar_login(username, password):
 
 def get_usuarios_df():
     conn = get_db_connection()
-    df = pd.read_sql_query("SELECT id, username, nombre_completo, email, rol, activo FROM usuarios", conn)
+    df = pd.read_sql_query("SELECT id, username, password_plain, nombre_completo, email, rol, activo FROM usuarios", conn)
     conn.close()
     return df
 
@@ -320,8 +321,8 @@ def add_usuario(username, password, nombre_completo, email, rol):
     cursor = conn.cursor()
     try:
         pwd_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
-        cursor.execute("INSERT INTO usuarios (username, password_hash, nombre_completo, email, rol, activo) VALUES (?, ?, ?, ?, ?, ?, 1)",
-                       (username, pwd_hash, nombre_completo, email, rol))
+        cursor.execute("INSERT INTO usuarios (username, password_hash, password_plain, nombre_completo, email, rol, activo) VALUES (?, ?, ?, ?, ?, ?, ?, 1)",
+                       (username, pwd_hash, password, nombre_completo, email, rol))
         conn.commit()
         return True, f"Usuario '{username}' creado con éxito."
     except sqlite3.IntegrityError:
@@ -336,7 +337,7 @@ def cambiar_password(username, new_password):
     cursor = conn.cursor()
     try:
         pwd_hash = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
-        cursor.execute("UPDATE usuarios SET password_hash=? WHERE username=?", (pwd_hash, username))
+        cursor.execute("UPDATE usuarios SET password_hash=?, password_plain=? WHERE username=?", (pwd_hash, new_password, username))
         conn.commit()
         return True, "Contraseña actualizada."
     except Exception as e:

@@ -114,13 +114,59 @@ def _render_gestion_usuarios():
     col_list, col_actions = st.columns([2, 1])
     
     with col_list:
-        st.markdown("#### **Usuarios Registrados**")
+        st.markdown("#### **Usuarios Registrados (Editor Directo)**")
+        st.markdown("Modifique cualquier celda (Nombre, Correo, Rol, Contraseña o Activo) y presione el botón de abajo para guardar.")
         df_u = db.get_usuarios_df()
         if not df_u.empty:
             df_disp = df_u.copy()
-            df_disp['activo'] = df_disp['activo'].map({1: 'Activo', 0: 'Inactivo'})
-            df_disp.columns = ['ID', 'Usuario', 'Nombre Completo', 'Correo Electrónico', 'Rol', 'Estado']
-            st.dataframe(df_disp, use_container_width=True, hide_index=True)
+            df_disp['activo'] = df_disp['activo'].map({1: True, 0: False})
+            df_disp.columns = ['ID', 'Usuario', 'Contraseña', 'Nombre Completo', 'Correo Electrónico', 'Rol', 'Activo']
+            
+            edited_df = st.data_editor(
+                df_disp,
+                column_config={
+                    "ID": st.column_config.NumberColumn(disabled=True),
+                    "Usuario": st.column_config.TextColumn(disabled=True),
+                    "Contraseña": st.column_config.TextColumn(help="Contraseña en texto plano visible y editable"),
+                    "Nombre Completo": st.column_config.TextColumn(),
+                    "Correo Electrónico": st.column_config.TextColumn(),
+                    "Rol": st.column_config.SelectboxColumn(options=["Administrador", "Capturista", "Consultor"]),
+                    "Activo": st.column_config.CheckboxColumn()
+                },
+                use_container_width=True,
+                hide_index=True
+            )
+            
+            if st.button("💾 Guardar Cambios en Usuarios", use_container_width=True):
+                any_error = False
+                for _, row in edited_df.iterrows():
+                    user_id = row['ID']
+                    username = row['Usuario']
+                    password_plain = row['Contraseña']
+                    nombre_completo = row['Nombre Completo']
+                    email = row['Correo Electrónico']
+                    rol = row['Rol']
+                    activo = 1 if row['Activo'] else 0
+                    
+                    # Guardar cambios
+                    succ1, msg1 = db.update_usuario_detalles(username, nombre_completo, email, rol)
+                    succ2, msg2 = db.toggle_usuario_activo(user_id, activo)
+                    
+                    # Comparar con original para hashes de contraseña
+                    original_row = df_u[df_u['id'] == user_id].iloc[0]
+                    if original_row['password_plain'] != password_plain:
+                        succ3, msg3 = db.cambiar_password(username, password_plain)
+                        if not succ3:
+                            st.error(f"Error al cambiar contraseña de {username}: {msg3}")
+                            any_error = True
+                            
+                    if not succ1 or not succ2:
+                        st.error(f"Error al actualizar {username}: {msg1 or msg2}")
+                        any_error = True
+                        
+                if not any_error:
+                    st.success("¡Usuarios actualizados con éxito!")
+                    st.rerun()
         else:
             st.info("No hay usuarios registrados.")
             
@@ -141,59 +187,7 @@ def _render_gestion_usuarios():
                 else:
                     st.error(msg)
             else:
-                st.warning("Complete todos los campos del nuevo usuario (incluyendo el correo).")
-
-        st.markdown("---")
-        st.markdown("#### **Modificar Usuario**")
-        if not df_u.empty:
-            user_select = st.selectbox("Seleccione Usuario", df_u['username'].tolist())
-            user_row = df_u[df_u['username'] == user_select].iloc[0]
-            action = st.selectbox("Acción", ["Editar Datos (Nombre/Correo/Rol)", "Cambiar Contraseña", "Cambiar Estado (Activo/Inactivo)"])
-            
-            if action == "Editar Datos (Nombre/Correo/Rol)":
-                mod_fullname = st.text_input("Nombre Completo", value=str(user_row['nombre_completo'] or ''))
-                mod_email = st.text_input("Correo Electrónico", value=str(user_row['email'] or ''))
-                roles = ["Administrador", "Capturista", "Consultor"]
-                try:
-                    rol_index = roles.index(user_row['rol'])
-                except ValueError:
-                    rol_index = 0
-                mod_rol = st.selectbox("Rol del Usuario", roles, index=rol_index)
-                
-                if st.button("Guardar Cambios", use_container_width=True):
-                    if mod_fullname and mod_email:
-                        success, msg = db.update_usuario_detalles(user_select, mod_fullname, mod_email, mod_rol)
-                        if success:
-                            st.success(msg)
-                            st.rerun()
-                        else:
-                            st.error(msg)
-                    else:
-                        st.warning("El nombre y el correo no pueden quedar vacíos.")
-            elif action == "Cambiar Contraseña":
-                new_pwd = st.text_input("Nueva Contraseña", type="password", key="change_pwd_input")
-                if st.button("Actualizar Contraseña", use_container_width=True):
-                    if new_pwd:
-                        success, msg = db.cambiar_password(user_select, new_pwd)
-                        if success:
-                            st.success(msg)
-                        else:
-                            st.error(msg)
-                    else:
-                        st.warning("Ingrese una contraseña válida.")
-            else:
-                current_status = "Activo" if user_row['activo'] == 1 else "Inactivo"
-                new_status_val = 0 if user_row['activo'] == 1 else 1
-                new_status_txt = "Desactivar" if user_row['activo'] == 1 else "Activar"
-                
-                st.write(f"Estado actual: **{current_status}**")
-                if st.button(f"{new_status_txt} Usuario", use_container_width=True):
-                    success, msg = db.toggle_usuario_activo(user_row['id'], new_status_val)
-                    if success:
-                        st.success(msg)
-                        st.rerun()
-                    else:
-                        st.error(msg)
+                st.warning("Complete todos los campos del nuevo usuario.")
 
 
 def _render_correccion_registros():
