@@ -45,29 +45,62 @@ st.markdown("""
         display: none !important;
     }
     
-    /* Estilizar botón de File Uploader para decir "📥 Carga" */
-    div[data-testid="stFileUploaderDropzone"] button {
-        font-size: 0 !important;
-        line-height: 0 !important;
-        padding: 8px 16px !important;
+    /* ─── ESTILIZADO CORPORATIVO J&D PARA CARGA DE ARCHIVOS (FILE UPLOADER) ─── */
+    section[data-testid="stFileUploaderDropzone"],
+    div[data-testid="stFileUploaderDropzone"] {
         background-color: #FFFFFF !important;
-        border: 1px solid #FE8C29 !important;
-        border-radius: 4px !important;
+        border: 2px dashed #FE8C29 !important;
+        border-radius: 10px !important;
+        padding: 16px !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.02) !important;
         transition: all 0.3s ease !important;
     }
-    div[data-testid="stFileUploaderDropzone"] button:hover {
-        background-color: #FFE6D5 !important;
+    
+    section[data-testid="stFileUploaderDropzone"]:hover,
+    div[data-testid="stFileUploaderDropzone"]:hover {
+        border-color: #e0771b !important;
+        background-color: #FFFDFB !important;
     }
-    div[data-testid="stFileUploaderDropzone"] button * {
-        display: none !important;
-    }
-    div[data-testid="stFileUploaderDropzone"] button::before {
-        content: "📥 Carga" !important;
+
+    /* Botón principal dentro del File Uploader */
+    section[data-testid="stFileUploaderDropzone"] button, 
+    div[data-testid="stFileUploaderDropzone"] button,
+    [data-testid="stFileUploader"] button {
+        background-color: #FE8C29 !important;
+        color: #FFFFFF !important;
+        font-family: 'Montserrat', sans-serif !important;
+        font-weight: 700 !important;
         font-size: 14px !important;
-        font-weight: 600 !important;
-        visibility: visible !important;
-        display: block !important;
+        line-height: 1.4 !important;
+        border: none !important;
+        border-radius: 6px !important;
+        padding: 8px 22px !important;
+        box-shadow: 0 2px 5px rgba(254, 140, 41, 0.35) !important;
+        transition: all 0.2s ease !important;
+    }
+    
+    section[data-testid="stFileUploaderDropzone"] button:hover, 
+    div[data-testid="stFileUploaderDropzone"] button:hover,
+    [data-testid="stFileUploader"] button:hover {
+        background-color: #e0771b !important;
+        color: #FFFFFF !important;
+        transform: translateY(-1px) !important;
+        box-shadow: 0 4px 10px rgba(254, 140, 41, 0.45) !important;
+    }
+
+    /* Texto e íconos dentro del botón de carga en blanco brillante */
+    section[data-testid="stFileUploaderDropzone"] button *,
+    div[data-testid="stFileUploaderDropzone"] button *,
+    [data-testid="stFileUploader"] button * {
+        color: #FFFFFF !important;
+        font-weight: 700 !important;
+        font-size: 14px !important;
+    }
+    
+    /* Instructivo de arrastrar y soltar */
+    [data-testid="stFileUploaderDropzoneInstructions"] {
         color: #434E62 !important;
+        font-weight: 500 !important;
     }
     
     /* Aplicar tipografía Nexa/Montserrat corporativa */
