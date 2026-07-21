@@ -421,18 +421,35 @@ def _render_control_backorder():
             df_b_disp.columns = ['ID', 'Folio OC', 'Proveedor', 'Fecha Compromiso', 'Monto OC', 'Proyecto Destino', 'ID Proyecto', 'Estado de Pago']
             st.dataframe(df_b_disp.drop(columns=['ID Proyecto']), use_container_width=True, hide_index=True)
             
-            with st.expander("🔄 Cambiar Estado de Pago de OC"):
-                oc_select_opts = dict(zip(df_b['numero_oc'], df_b['id']))
-                selected_oc = st.selectbox("Seleccione Folio OC", list(oc_select_opts.keys()))
-                new_state = st.selectbox("Nuevo Estado", ["Pendiente", "Pagado"])
-                if st.button("Actualizar Estado"):
-                    selected_id = oc_select_opts[selected_oc]
-                    up_ok, up_msg = db.update_backorder_status(selected_id, new_state)
-                    if up_ok:
-                        st.success(up_msg)
-                        st.rerun()
-                    else:
-                        st.error(up_msg)
+            col_oc_act1, col_oc_act2 = st.columns(2)
+            with col_oc_act1:
+                with st.expander("🔄 Cambiar Estado de Pago de OC"):
+                    oc_select_opts = dict(zip(df_b['numero_oc'], df_b['id']))
+                    selected_oc = st.selectbox("Seleccione Folio OC", list(oc_select_opts.keys()))
+                    new_state = st.selectbox("Nuevo Estado", ["Pendiente", "Pagado"])
+                    if st.button("Actualizar Estado"):
+                        selected_id = oc_select_opts[selected_oc]
+                        up_ok, up_msg = db.update_backorder_status(selected_id, new_state)
+                        if up_ok:
+                            st.success(up_msg)
+                            st.rerun()
+                        else:
+                            st.error(up_msg)
+            with col_oc_act2:
+                with st.expander("📄 Descargar PDF de Orden de Compra"):
+                    oc_list = df_b.to_dict('records')
+                    oc_dict_opts = {r['numero_oc']: r for r in oc_list}
+                    sel_oc_num = st.selectbox("Seleccione OC para generar PDF:", list(oc_dict_opts.keys()))
+                    if sel_oc_num:
+                        oc_data = oc_dict_opts[sel_oc_num]
+                        pdf_oc_bytes = pdf_gen.generar_pdf_orden_compra(oc_data)
+                        st.download_button(
+                            label=f"📥 Descargar PDF ({sel_oc_num})",
+                            data=pdf_oc_bytes,
+                            file_name=f"Orden_Compra_{sel_oc_num}.pdf",
+                            mime="application/pdf",
+                            use_container_width=True
+                        )
         else:
             st.info("No hay órdenes de compra registradas.")
 

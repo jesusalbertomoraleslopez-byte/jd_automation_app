@@ -1,6 +1,7 @@
 """
 modules/pdf_generator.py — Generador de PDFs para J&D Automation Industries
-Utiliza la hoja membretada oficial corporativa para recibos de gastos, reportes y manuales.
+Utiliza la hoja membretada oficial corporativa con márgenes calibrados para recibos de gastos,
+órdenes de compra (backorder), reportes tabulares y el manual de operación.
 """
 import io
 import datetime
@@ -23,13 +24,13 @@ class JDPdf(FPDF):
 
     def __init__(self, orientation='P', unit='mm', format='A4'):
         super().__init__(orientation=orientation, unit=unit, format=format)
-        # Ajustar márgenes para respetar la hoja membretada
+        # Márgenes calibrados exactamente para no empalmar con cabecera (44mm) ni pie de página (42mm)
         if orientation == 'P':
-            self.set_margins(15, 36, 15)
-            self.set_auto_page_break(auto=True, margin=28)
+            self.set_margins(15, 46, 15)
+            self.set_auto_page_break(auto=True, margin=46)
         else:
-            self.set_margins(15, 30, 15)
-            self.set_auto_page_break(auto=True, margin=24)
+            self.set_margins(15, 38, 15)
+            self.set_auto_page_break(auto=True, margin=36)
 
     def header(self):
         # Dibujar la hoja membretada oficial de fondo
@@ -47,8 +48,8 @@ class JDPdf(FPDF):
             self.cell(0, 8, 'J&D AUTOMATION INDUSTRIES', align='R', new_x='LMARGIN', new_y='NEXT')
 
     def footer(self):
-        # Fecha de generación y número de página
-        self.set_y(-22 if self.cur_orientation == 'P' else -18)
+        # Colocar número de página y fecha arriba de la barra inferior de la hoja membretada
+        self.set_y(-42 if self.cur_orientation == 'P' else -32)
         self.set_font('Helvetica', 'I', 8)
         self.set_text_color(*COLOR_CHARCOAL)
         self.cell(0, 4, f'Generado: {datetime.datetime.now().strftime("%d/%m/%Y %H:%M")}   |   Página {self.page_no()}', align='C')
@@ -148,6 +149,77 @@ def generar_pdf_gasto(gasto: dict) -> bytes:
     return bytes(pdf.output())
 
 
+def generar_pdf_orden_compra(orden: dict) -> bytes:
+    """Genera un PDF oficial de Orden de Compra (OC) sobre la hoja membretada corporativa."""
+    pdf = JDPdf()
+    pdf.add_page()
+
+    # ── Título del Documento ──
+    pdf.set_font('Helvetica', 'B', 16)
+    pdf.set_text_color(*COLOR_CHARCOAL)
+    pdf.cell(0, 8, 'ORDEN DE COMPRA (BACKORDER)', align='C', new_x='LMARGIN', new_y='NEXT')
+    pdf.ln(1)
+
+    folio = orden.get('numero_oc', 'N/A')
+    fecha_gen = datetime.datetime.now().strftime('%d/%m/%Y %H:%M')
+    pdf.set_font('Helvetica', '', 9)
+    pdf.set_text_color(*COLOR_TEXT_LIGHT)
+    pdf.cell(0, 5, f'Folio de OC: #{folio}   |   Fecha de Emisión: {fecha_gen}', align='C', new_x='LMARGIN', new_y='NEXT')
+    pdf.ln(4)
+
+    # ── Datos de la Orden de Compra ──
+    pdf.section_title('1. INFORMACIÓN DE LA ORDEN DE COMPRA')
+    fields = [
+        ('Folio de la OC:', orden.get('numero_oc', 'N/A')),
+        ('Proveedor:', orden.get('proveedor', 'N/A')),
+        ('Fecha Compromiso de Pago:', orden.get('fecha_compromiso', 'N/A')),
+        ('Monto de la OC (IVA Incluido):', f"${float(orden.get('monto_oc', 0)):,.2f} MXN"),
+        ('Proyecto Destino:', orden.get('proyecto_nombre', 'N/A')),
+        ('Estado de Pago:', orden.get('estado_pago', 'Pendiente')),
+    ]
+    for i, (lbl, val) in enumerate(fields):
+        pdf.kv_row(lbl, val, shade=(i % 2 == 0))
+
+    # ── Términos y Condiciones ──
+    pdf.ln(4)
+    pdf.section_title('2. TÉRMINOS Y CONDICIONES DE ENTREGA Y PAGO')
+    terminos = (
+        "1. La entrega de materiales o servicios se realizará según la fecha compromiso estipulada.\n"
+        "2. Todas las facturas deberán emitirse a nombre de J&D Automation Industries con IVA desglose.\n"
+        "3. El pago se efectuará conforme a los plazos pactados tras recepción a satisfacción de los insumos.\n"
+        "4. Indicar el número de Folio de OC en toda la correspondencia y facturas fiscales relativas a esta orden."
+    )
+    pdf.set_font('Helvetica', '', 8)
+    pdf.set_text_color(40, 40, 40)
+    pdf.multi_cell(0, 4.5, terminos)
+
+    # ── Sello de Firmas de Autorización ──
+    pdf.ln(12)
+    pdf.set_draw_color(*COLOR_CHARCOAL)
+    pdf.set_line_width(0.3)
+    
+    y_line = pdf.get_y()
+    pdf.line(15, y_line, 70, y_line)
+    pdf.line(80, y_line, 135, y_line)
+    pdf.line(145, y_line, 195, y_line)
+    pdf.ln(2)
+    
+    pdf.set_font('Helvetica', '', 8)
+    pdf.set_text_color(*COLOR_TEXT_LIGHT)
+    pdf.cell(55, 4, 'Elaboró (Compras)', align='C')
+    pdf.cell(10, 4, '')
+    pdf.cell(55, 4, 'Autorizó (Gerencia)', align='C')
+    pdf.cell(10, 4, '')
+    pdf.cell(50, 4, 'Vo.Bo. Dirección', align='C')
+    pdf.ln(6)
+    
+    pdf.set_font('Helvetica', 'I', 7)
+    pdf.set_text_color(*COLOR_TEXT_LIGHT)
+    pdf.cell(0, 4, 'Documento oficial de compromiso comercial generado por el Sistema de Control Financiero J&D Automation Industries.', align='C')
+
+    return bytes(pdf.output())
+
+
 def generar_pdf_tabla(df, titulo: str, columnas_rename: dict = None) -> bytes:
     """Genera un PDF horizontal (Landscape) sobre la hoja membretada con una tabla de datos."""
     pdf = JDPdf(orientation='L')
@@ -204,7 +276,7 @@ def generar_pdf_manual() -> bytes:
     # Portada
     pdf.set_font('Helvetica', 'B', 18)
     pdf.set_text_color(*COLOR_CHARCOAL)
-    pdf.ln(10)
+    pdf.ln(4)
     pdf.cell(0, 10, 'MANUAL DE OPERACIÓN DEL SISTEMA', align='C', new_x='LMARGIN', new_y='NEXT')
     pdf.set_font('Helvetica', '', 11)
     pdf.set_text_color(*COLOR_ORANGE)
@@ -213,7 +285,7 @@ def generar_pdf_manual() -> bytes:
     pdf.set_font('Helvetica', '', 9)
     pdf.set_text_color(*COLOR_TEXT_LIGHT)
     pdf.cell(0, 5, f'Versión 2.0   |   {datetime.datetime.now().strftime("%B %Y")}', align='C')
-    pdf.ln(12)
+    pdf.ln(10)
 
     # Secciones del manual
     secciones = [
@@ -229,44 +301,36 @@ def generar_pdf_manual() -> bytes:
          "y acceder al módulo de Mantenimiento del Sistema.\n"
          "  * Capturista: Puede registrar gastos, proyectos, cuentas y OCs. No puede eliminar registros.\n"
          "  * Consultor: Acceso de solo lectura. Puede visualizar dashboards y descargar reportes.\n\n"
-         "Credenciales por defecto: admin / JD2024Admin. Cambie la contraseña en Módulo 9 -> Gestión de Usuarios."),
+         "Credenciales por defecto: admin / JD2024Admin. Cambie la contraseña en Módulo 8 -> Gestión de Usuarios."),
 
-        ("3. Módulo 1 - Inicio & Registro",
-         "Contiene 4 sub-secciones:\n"
-         "  1.1 Proyectos: Alta y gestión de proyectos con código único de 5 dígitos, nombre, descripción y monto contratado.\n"
-         "  1.2 Cuentas & Tarjetas: Registro de métodos de pago (Tarjeta, Transferencia, Efectivo).\n"
-         "  1.3 Captura de Gasto: Formulario principal de registro de egresos con clasificación jerárquica "
-         "(Rubro -> Subrubro -> Concepto), validación de XML/CFDI del SAT, y generación automática de recibo PDF en hoja membretada.\n"
-         "  1.4 Órdenes de Compra (Backorder): Registro y seguimiento de compromisos de pago futuros."),
+        ("3. Módulo 1 - Gastos (Captura & Carga Masiva)",
+         "Contiene 2 sub-secciones:\n"
+         "  1.1 Captura Individual de Gasto: Formulario principal de egresos con soporte para CFDI/XML, comprobante en foto o "
+         "pegar directamente desde el portapapeles (Ctrl+V), y recibo PDF generado sobre la hoja membretada corporativa.\n"
+         "  1.2 Carga Masiva (Excel): Importación transaccional con plantilla validada vinculada a la base de datos."),
 
-        ("4. Módulo 3 - Flujo de Caja Proyectado",
+        ("4. Módulo 2 - Proyectos (Gestión & Pareto)",
+         "Contiene 5 sub-secciones:\n"
+         "  2.1 Alta & Gestión de Proyectos: Registro con código de 5 dígitos, nombre, descripción e ingreso contratado.\n"
+         "  2.2 Órdenes de Compra (Backorder): Registro de compromisos de compra futuros y generación de PDF de OC.\n"
+         "  2.3 Estado General por Proyecto: Semáforo de salud financiera, presupuesto contratado vs gasto real y utilidad.\n"
+         "  2.4 Pareto de Costos: Gráfica 80/20 de los conceptos de mayor costo por proyecto.\n"
+         "  2.5 Progreso vs Presupuesto: Avance porcentual de la ejecución presupuestaria."),
+
+        ("5. Módulo 3 - Flujo de Caja Proyectado",
          "Permite proyectar la salud financiera de la empresa semana a semana (3 meses):\n"
-         "  3.1 Matriz de Flujo Semanal: Vista interactiva con código de colores (Verde para pagados/ejecutados, Rosa para pendientes).\n"
-         "  3.2 Ejecutar Gastos Planeados: Pasa un gasto programado a egreso real con asignación de banco y generación de recibo PDF.\n"
-         "  3.3 Exportar Excel y Correo .EML: Descarga la matriz quincenal en Excel y genera el correo ejecutivo .eml con gráficos embebidos."),
+         "  3.1 Matriz de Flujo Semanal: Vista interactiva con código de colores (Verde para ejecutados, Rosa para pendientes).\n"
+         "  3.2 Ejecutar Gastos Planeados: Pasa un gasto programado a egreso real con asignación de banco y recibo PDF.\n"
+         "  3.3 Exportar Excel y Correo .EML: Descarga la matriz quincenal en Excel y genera el correo ejecutivo .eml con gráficos."),
 
-        ("5. Clasificación Jerárquica de Gastos",
-         "Los gastos se clasifican en 3 niveles opcionales:\n"
-         "  Nivel 1 - Rubro Principal (ej. 'Mano de Obra y Personal')\n"
-         "  Nivel 2 - Subrubro (ej. 'Nómina Interna Operativa')\n"
-         "  Nivel 3 - Concepto Detallado (ej. 'Sueldo Base Técnicos')\n\n"
-         "Estos campos son opcionales: si el gasto no tiene una clasificación definida, puede dejarse en blanco. "
-         "El catálogo de clasificaciones es dinámico y puede administrarse en el Módulo 9 -> Gestión de Clasificaciones."),
+        ("6. Módulo 8 - Mantenimiento del Sistema (Solo Administrador)",
+         "  8.1 Cuentas & Tarjetas: Registro de bancos, tarjetas y métodos de pago.\n"
+         "  8.2 Gestión de Clasificaciones: Catálogo dinámico para agregar/eliminar Rubros, Subrubros y Conceptos.\n"
+         "  8.3 Gestión de Usuarios: Crear usuarios, asignar roles, activar/desactivar y cambiar contraseñas.\n"
+         "  8.4 Corrección de Registros: Edición directa de campos en gastos ya registrados.\n"
+         "  8.5 Limpieza de Base de Datos: Vaciado selectivo de tablas con confirmación doble."),
 
-        ("6. Módulo 2 - Carga Masiva (Excel)",
-         "Permite importar múltiples gastos en un solo archivo Excel.\n"
-         "  6.1 Descargue la plantilla desde el botón 'Descargar Plantilla'. Esta plantilla incluye las listas "
-         "desplegables validadas con los proyectos activos y catálogos vigentes.\n"
-         "  6.2 Llene la plantilla con los gastos y cargue el archivo. El sistema validará cada fila antes de importar."),
-
-        ("7. Módulo 9 - Mantenimiento del Sistema (Solo Administrador)",
-         "  9.1 Gestión de Clasificaciones: CRUD completo para agregar, ver y eliminar Rubros, Subrubros y Conceptos.\n"
-         "  9.2 Gestión de Usuarios: Crear usuarios, asignar roles, activar/desactivar y cambiar contraseñas.\n"
-         "  9.3 Corrección de Registros: Edición directa de campos en gastos ya registrados.\n"
-         "  9.4 Limpieza de Base de Datos: Vaciado selectivo de tablas con confirmación doble.\n"
-         "  9.5 Explorador de Almacenamiento: Visualización y eliminación de archivos en el servidor."),
-
-        ("8. Reglas Fiscales Homologadas",
+        ("7. Reglas Fiscales Homologadas",
          "  * Todos los montos se ingresan como MONTO NETO CON IVA INCLUIDO.\n"
          "  * Si el estado de facturación es 'Facturado', se recomienda adjuntar el XML (CFDI) y PDF de la factura. "
          "El sistema extraerá automáticamente el RFC del proveedor, el UUID fiscal y verificará el total.\n"
