@@ -268,9 +268,9 @@ def render_flujo_caja_modulo():
         )
 
         # Alertas de flujo
-        for q_idx, q in enumerate(quincenas):
+        for q_idx, q in enumerate(semanas):
             if saldo_acumulado[q_idx] < 0:
-                st.error(f"⚠️ **Alerta de Flujo:** Se estima un saldo de caja deficitario de **${saldo_acumulado[q_idx]:,.2f} MXN** para la quincena **{q['label']}**. Planifique cobranzas o postergue egresos.")
+                st.error(f"⚠️ **Alerta de Flujo:** Se estima un saldo de caja deficitario de **${saldo_acumulado[q_idx]:,.2f} MXN** para la semana **{q['label']}**. Planifique cobranzas o postergue egresos.")
 
     # ─── TAB 3.2: EJECUTAR GASTOS PLANEADOS ───
     with tab_exec:
