@@ -6,66 +6,35 @@ import database as db
 import modules.excel_handler as excel_h
 import modules.pdf_generator as pdf_gen
 
-def get_quincenas():
-    """Genera 12 períodos quincenales (4 en el pasado, 1 actual, 7 en el futuro)."""
+def get_semanas():
+    """Genera 12 períodos semanales (2 en el pasado, 1 actual, 9 en el futuro)."""
     today = datetime.date.today()
-    quincenas = []
+    current_monday = today - datetime.timedelta(days=today.weekday())
+    start_monday = current_monday - datetime.timedelta(weeks=2)
     
-    current_half = 1 if today.day <= 15 else 2
+    semanas = []
+    meses_es = {
+        1: 'ene', 2: 'feb', 3: 'mar', 4: 'abr', 5: 'may', 6: 'jun',
+        7: 'jul', 8: 'ago', 9: 'sep', 10: 'oct', 11: 'nov', 12: 'dic'
+    }
     
-    y = today.year
-    m = today.month
-    h = current_half
-    
-    # Retroceder 4 quincenas
-    for _ in range(4):
-        h -= 1
-        if h == 0:
-            h = 2
-            m -= 1
-            if m == 0:
-                m = 12
-                y -= 1
-                
-    # Generar 12 períodos consecutivos
-    for _ in range(12):
-        meses_es = {
-            1: 'ene', 2: 'feb', 3: 'mar', 4: 'abr', 5: 'may', 6: 'jun',
-            7: 'jul', 8: 'ago', 9: 'sep', 10: 'oct', 11: 'nov', 12: 'dic'
-        }
-        label = f"{'01' if h == 1 else '16'}-{meses_es[m]}"
+    for i in range(12):
+        monday = start_monday + datetime.timedelta(weeks=i)
+        sunday = monday + datetime.timedelta(days=6)
+        label = f"{monday.day:02d}-{meses_es[monday.month]}"
         
-        if h == 1:
-            start_date = datetime.date(y, m, 1)
-            end_date = datetime.date(y, m, 15)
-        else:
-            start_date = datetime.date(y, m, 16)
-            if m == 12:
-                end_date = datetime.date(y+1, 1, 1) - datetime.timedelta(days=1)
-            else:
-                end_date = datetime.date(y, m+1, 1) - datetime.timedelta(days=1)
-                
-        quincenas.append({
+        semanas.append({
             'label': label,
-            'start': start_date,
-            'end': end_date,
-            'year': y,
-            'month': m,
-            'half': h
+            'start': monday,
+            'end': sunday,
+            'year': monday.year,
+            'month': monday.month
         })
         
-        h += 1
-        if h == 3:
-            h = 1
-            m += 1
-            if m == 13:
-                m = 1
-                y += 1
-                
-    return quincenas
+    return semanas
 
-def calculate_cashflow_matrix(quincenas, saldo_inicial_caja):
-    """Calcula los flujos de caja e históricos por períodos quincenales."""
+def calculate_cashflow_matrix(semanas, saldo_inicial_caja):
+    """Calcula los flujos de caja e históricos por períodos semanales."""
     df_g_prog = db.get_gastos_programados_df()
     df_i_prog = db.get_ingresos_programados_df()
     df_backorder = db.get_backorders_df()
@@ -100,13 +69,13 @@ def calculate_cashflow_matrix(quincenas, saldo_inicial_caja):
     ]
 
     all_rows = inflow_rows + outflow_rows
-    col_labels = [q['label'] for q in quincenas]
+    col_labels = [q['label'] for q in semanas]
 
     # Matrices de valores y estados
     df_values = pd.DataFrame(0.0, index=all_rows, columns=col_labels)
     df_status = pd.DataFrame('Ninguno', index=all_rows, columns=col_labels)
 
-    for q in quincenas:
+    for q in semanas:
         lbl = q['label']
         start = pd.to_datetime(q['start'])
         end = pd.to_datetime(q['end'])
@@ -211,13 +180,13 @@ def calculate_cashflow_matrix(quincenas, saldo_inicial_caja):
 
 def render_flujo_caja_modulo():
     tab_matrix, tab_exec, tab_export, tab_setup = st.tabs([
-        "📊 3.1 Matriz de Flujo Quincenal",
+        "📊 3.1 Matriz de Flujo Semanal",
         "⚡ 3.2 Ejecutar Gastos Planeados",
         "📥 3.3 Exportar Excel de Flujo",
         "⚙️ 3.4 Programación General"
     ])
 
-    quincenas = get_quincenas()
+    semanas = get_semanas()
 
     # Saldo Inicial configurable
     df_accounts = db.get_cuentas()
@@ -225,7 +194,7 @@ def render_flujo_caja_modulo():
 
     # ─── TAB 3.1: MATRIZ DE FLUJO ───
     with tab_matrix:
-        st.markdown("### **Matriz de Movimientos Financieros (Vista Quincenal)**")
+        st.markdown("### **Matriz de Movimientos Financieros (Vista Semanal)**")
         st.markdown("Las celdas <span style='color:#155724;background-color:#D4EDDA;padding:2px 5px;border-radius:3px;font-weight:bold;'>Verdes</span> indican transacciones reales/ejecutadas, mientras que las <span style='color:#721C24;background-color:#F8D7DA;padding:2px 5px;border-radius:3px;'>Rosas</span> corresponden a compromisos pendientes.", unsafe_allow_html=True)
         
         col_init, col_empty = st.columns([1, 2])
@@ -238,7 +207,7 @@ def render_flujo_caja_modulo():
                 key="matrix_init_bal"
             )
 
-        df_values, df_status, inflow_rows, outflow_rows = calculate_cashflow_matrix(quincenas, saldo_inicial)
+        df_values, df_status, inflow_rows, outflow_rows = calculate_cashflow_matrix(semanas, saldo_inicial)
 
         # Agregar filas calculadas
         total_entradas = df_values.loc[inflow_rows].sum()
@@ -422,14 +391,14 @@ def render_flujo_caja_modulo():
 
     # ─── TAB 3.3: EXPORTAR EXCEL DE FLUJO ───
     with tab_export:
-        st.markdown("### **Descargar Reporte Quincenal Formateado**")
+        st.markdown("### **Descargar Reporte Semanal Formateado**")
         st.markdown("Obtenga el archivo de Excel completamente estilizado. Cuenta con formato condicional de colores (verde y rosa), subtotales y fórmulas incorporadas de forma automática.")
         
         try:
-            df_values_e, df_status_e, _, _ = calculate_cashflow_matrix(quincenas, saldo_inicial_real)
+            df_values_e, df_status_e, _, _ = calculate_cashflow_matrix(semanas, saldo_inicial_real)
             
             excel_bytes = excel_h.export_cashflow_matrix_excel(
-                quincenas=quincenas,
+                semanas=semanas,
                 row_names=df_values_e.index.tolist(),
                 df_values=df_values_e,
                 df_status=df_status_e,

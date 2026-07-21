@@ -393,7 +393,7 @@ def import_excel_expenses(file_bytes):
         'errors': []
     }
 
-def export_cashflow_matrix_excel(quincenas, row_names, df_values, df_status, saldo_inicial):
+def export_cashflow_matrix_excel(semanas, row_names, df_values, df_status, saldo_inicial):
     from openpyxl.styles import Border, Side, PatternFill, Font, Alignment
     from openpyxl.utils import get_column_letter
     
@@ -433,7 +433,7 @@ def export_cashflow_matrix_excel(quincenas, row_names, df_values, df_status, sal
     ws.cell(row=1, column=1).fill = fill_header
     ws.cell(row=1, column=1).alignment = Alignment(horizontal="left", vertical="center")
     
-    for col_idx, q in enumerate(quincenas, start=2):
+    for col_idx, q in enumerate(semanas, start=2):
         cell = ws.cell(row=1, column=col_idx, value=q['label'])
         cell.font = font_header
         cell.fill = fill_header
@@ -444,7 +444,7 @@ def export_cashflow_matrix_excel(quincenas, row_names, df_values, df_status, sal
     # Section ENTRADAS
     ws.cell(row=current_row, column=1, value="ENTRADAS (INGRESOS)").font = font_section
     ws.cell(row=current_row, column=1).fill = fill_section
-    for col_idx in range(2, len(quincenas) + 2):
+    for col_idx in range(2, len(semanas) + 2):
         ws.cell(row=current_row, column=col_idx).fill = fill_section
     current_row += 1
     
@@ -455,7 +455,7 @@ def export_cashflow_matrix_excel(quincenas, row_names, df_values, df_status, sal
     for rname in inflow_rows:
         ws.cell(row=current_row, column=1, value=rname).font = font_regular
         ws.cell(row=current_row, column=1).border = thin_border
-        for col_idx, q in enumerate(quincenas, start=2):
+        for col_idx, q in enumerate(semanas, start=2):
             val = df_values.loc[rname, q['label']]
             status = df_status.loc[rname, q['label']]
             cell = ws.cell(row=current_row, column=col_idx, value=val)
@@ -472,7 +472,7 @@ def export_cashflow_matrix_excel(quincenas, row_names, df_values, df_status, sal
     ws.cell(row=current_row, column=1, value="TOTAL ENTRADAS").font = font_total
     ws.cell(row=current_row, column=1).fill = fill_totals
     ws.cell(row=current_row, column=1).border = thin_border
-    for col_idx, q in enumerate(quincenas, start=2):
+    for col_idx, q in enumerate(semanas, start=2):
         col_letter = get_column_letter(col_idx)
         cell = ws.cell(row=current_row, column=col_idx, value=f"=SUM({col_letter}{inflow_start_row}:{col_letter}{inflow_end_row})")
         cell.font = font_total
@@ -484,7 +484,7 @@ def export_cashflow_matrix_excel(quincenas, row_names, df_values, df_status, sal
     # Section SALIDAS
     ws.cell(row=current_row, column=1, value="SALIDAS (EGRESOS)").font = font_section
     ws.cell(row=current_row, column=1).fill = fill_section
-    for col_idx in range(2, len(quincenas) + 2):
+    for col_idx in range(2, len(semanas) + 2):
         ws.cell(row=current_row, column=col_idx).fill = fill_section
     current_row += 1
     
@@ -492,7 +492,7 @@ def export_cashflow_matrix_excel(quincenas, row_names, df_values, df_status, sal
     for rname in outflow_rows:
         ws.cell(row=current_row, column=1, value=rname).font = font_regular
         ws.cell(row=current_row, column=1).border = thin_border
-        for col_idx, q in enumerate(quincenas, start=2):
+        for col_idx, q in enumerate(semanas, start=2):
             val = df_values.loc[rname, q['label']]
             status = df_status.loc[rname, q['label']]
             cell = ws.cell(row=current_row, column=col_idx, value=val)
@@ -509,7 +509,7 @@ def export_cashflow_matrix_excel(quincenas, row_names, df_values, df_status, sal
     ws.cell(row=current_row, column=1, value="TOTAL SALIDAS").font = font_total
     ws.cell(row=current_row, column=1).fill = fill_totals
     ws.cell(row=current_row, column=1).border = thin_border
-    for col_idx in range(2, len(quincenas) + 2):
+    for col_idx in range(2, len(semanas) + 2):
         col_letter = get_column_letter(col_idx)
         cell = ws.cell(row=total_salidas_row, column=col_idx, value=f"=SUM({col_letter}{outflow_start_row}:{col_letter}{outflow_end_row})")
         cell.font = font_total
@@ -522,7 +522,7 @@ def export_cashflow_matrix_excel(quincenas, row_names, df_values, df_status, sal
     balance_row = current_row
     ws.cell(row=current_row, column=1, value="BALANCE (NETO)").font = font_total
     ws.cell(row=current_row, column=1).border = thin_border
-    for col_idx, q in enumerate(quincenas, start=2):
+    for col_idx, q in enumerate(semanas, start=2):
         col_letter = get_column_letter(col_idx)
         cell = ws.cell(row=current_row, column=col_idx, value=f"={col_letter}{total_entradas_row}-{col_letter}{total_salidas_row}")
         cell.font = font_total
@@ -534,7 +534,7 @@ def export_cashflow_matrix_excel(quincenas, row_names, df_values, df_status, sal
     saldo_row = current_row
     ws.cell(row=current_row, column=1, value="SALDO ACUMULADO").font = font_total
     ws.cell(row=current_row, column=1).border = double_bottom_border
-    for col_idx, q in enumerate(quincenas, start=2):
+    for col_idx, q in enumerate(semanas, start=2):
         col_letter = get_column_letter(col_idx)
         if col_idx == 2:
             cell = ws.cell(row=current_row, column=col_idx, value=f"={saldo_inicial}+{col_letter}{balance_row}")
