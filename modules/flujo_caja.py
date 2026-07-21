@@ -391,12 +391,13 @@ def render_flujo_caja_modulo():
 
     # ─── TAB 3.3: EXPORTAR EXCEL DE FLUJO ───
     with tab_export:
-        st.markdown("### **Descargar Reporte Semanal Formateado**")
-        st.markdown("Obtenga el archivo de Excel completamente estilizado. Cuenta con formato condicional de colores (verde y rosa), subtotales y fórmulas incorporadas de forma automática.")
+        st.markdown("### **Descargar Reportes y Plantilla de Envío**")
+        st.markdown("Obtenga la proyección de flujo en Excel o genere la plantilla de correo corporativo (.eml) con el análisis financiero, gráficos incrustados y el Excel adjunto automáticamente para su envío rápido.")
         
         try:
             df_values_e, df_status_e, _, _ = calculate_cashflow_matrix(semanas, saldo_inicial_real)
             
+            excel_filename = f"Flujo_de_Caja_JD_Automation_{datetime.date.today().strftime('%Y%m%d')}.xlsx"
             excel_bytes = excel_h.export_cashflow_matrix_excel(
                 semanas=semanas,
                 row_names=df_values_e.index.tolist(),
@@ -405,16 +406,49 @@ def render_flujo_caja_modulo():
                 saldo_inicial=saldo_inicial_real
             )
             
-            st.download_button(
-                label="📥 Descargar Flujo de Caja Corporativo J&D (.xlsx)",
-                data=excel_bytes,
-                file_name=f"Flujo_de_Caja_JD_Automation_{datetime.date.today().strftime('%Y%m%d')}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True
-            )
-            st.success("¡Archivo listo para descarga!")
+            col_d1, col_d2 = st.columns(2)
+            
+            with col_d1:
+                st.markdown("##### **📄 Proyección de Flujo de Caja**")
+                st.markdown("Descargue el archivo de Excel formateado con subtotales, fórmulas y códigos de colores.")
+                st.download_button(
+                    label="📥 Descargar Hoja de Flujo (.xlsx)",
+                    data=excel_bytes,
+                    file_name=excel_filename,
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True
+                )
+                
+            with col_d2:
+                st.markdown("##### **📧 Correo Outlook Automático**")
+                st.markdown("Descargue el archivo `.eml` listo para abrir en su gestor de correo con el análisis, gráficos incrustados y Excel adjunto.")
+                
+                try:
+                    import modules.eml_generator as eml_gen
+                    eml_bytes = eml_gen.generate_eml_with_report(
+                        excel_bytes=excel_bytes,
+                        excel_filename=excel_filename,
+                        semanas=semanas,
+                        df_values=df_values_e,
+                        df_status=df_status_e,
+                        saldo_inicial=saldo_inicial_real
+                    )
+                    
+                    eml_filename = f"Reporte_Semanal_y_Proyeccion_Flujo_de_Caja_JD_Automation_{datetime.date.today().strftime('%d-%m-%Y')}.eml"
+                    
+                    st.download_button(
+                        label="✉️ Descargar Correo Ejecutivo (.eml)",
+                        data=eml_bytes,
+                        file_name=eml_filename,
+                        mime="message/rfc822",
+                        use_container_width=True
+                    )
+                except Exception as ex_eml:
+                    st.error(f"Error al generar correo .eml: {str(ex_eml)}")
+            
+            st.success("¡Documentos y plantillas generados con éxito!")
         except Exception as e:
-            st.error(f"Error al estructurar el Excel: {str(e)}")
+            st.error(f"Error al estructurar los reportes: {str(e)}")
 
     # ─── TAB 3.4: PROGRAMACIÓN GENERAL ───
     with tab_setup:
