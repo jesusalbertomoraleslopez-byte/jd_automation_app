@@ -392,3 +392,165 @@ def import_excel_expenses(file_bytes):
         'imported_count': imported_count,
         'errors': []
     }
+
+def export_cashflow_matrix_excel(quincenas, row_names, df_values, df_status, saldo_inicial):
+    from openpyxl.styles import Border, Side, PatternFill, Font, Alignment
+    from openpyxl.utils import get_column_letter
+    
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Flujo de Caja"
+    ws.views.sheetView[0].showGridLines = True
+    
+    # Fonts and fills
+    font_title = Font(name="Calibri", size=14, bold=True, color="FFFFFF")
+    font_section = Font(name="Calibri", size=11, bold=True, color="000000")
+    font_header = Font(name="Calibri", size=10, bold=True, color="FFFFFF")
+    font_regular = Font(name="Calibri", size=10, color="000000")
+    font_total = Font(name="Calibri", size=10, bold=True, color="000000")
+    
+    fill_header = PatternFill(start_color="1F4E79", end_color="1F4E79", fill_type="solid") # Dark Blue
+    fill_section = PatternFill(start_color="DDEBF7", end_color="DDEBF7", fill_type="solid") # Very light blue
+    fill_green = PatternFill(start_color="D4EDDA", end_color="D4EDDA", fill_type="solid") # Light Green (paid)
+    fill_pink = PatternFill(start_color="F8D7DA", end_color="F8D7DA", fill_type="solid") # Light Pink (pending)
+    fill_totals = PatternFill(start_color="F2F2F2", end_color="F2F2F2", fill_type="solid") # Light Gray
+    
+    thin_border = Border(
+        left=Side(style='thin', color='D9D9D9'),
+        right=Side(style='thin', color='D9D9D9'),
+        top=Side(style='thin', color='D9D9D9'),
+        bottom=Side(style='thin', color='D9D9D9')
+    )
+    double_bottom_border = Border(
+        top=Side(style='thin', color='000000'),
+        bottom=Side(style='double', color='000000'),
+        left=Side(style='thin', color='D9D9D9'),
+        right=Side(style='thin', color='D9D9D9')
+    )
+    
+    # 1. Header row
+    ws.cell(row=1, column=1, value="Movimientos").font = font_header
+    ws.cell(row=1, column=1).fill = fill_header
+    ws.cell(row=1, column=1).alignment = Alignment(horizontal="left", vertical="center")
+    
+    for col_idx, q in enumerate(quincenas, start=2):
+        cell = ws.cell(row=1, column=col_idx, value=q['label'])
+        cell.font = font_header
+        cell.fill = fill_header
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+        
+    current_row = 2
+    
+    # Section ENTRADAS
+    ws.cell(row=current_row, column=1, value="ENTRADAS (INGRESOS)").font = font_section
+    ws.cell(row=current_row, column=1).fill = fill_section
+    for col_idx in range(2, len(quincenas) + 2):
+        ws.cell(row=current_row, column=col_idx).fill = fill_section
+    current_row += 1
+    
+    inflow_rows = [r for r in row_names if r.startswith("💼") or "Ingresos" in r]
+    outflow_rows = [r for r in row_names if not (r.startswith("💼") or "Ingresos" in r)]
+    
+    inflow_start_row = current_row
+    for rname in inflow_rows:
+        ws.cell(row=current_row, column=1, value=rname).font = font_regular
+        ws.cell(row=current_row, column=1).border = thin_border
+        for col_idx, q in enumerate(quincenas, start=2):
+            val = df_values.loc[rname, q['label']]
+            status = df_status.loc[rname, q['label']]
+            cell = ws.cell(row=current_row, column=col_idx, value=val)
+            cell.font = font_regular
+            cell.number_format = '$#,##0.00'
+            cell.border = thin_border
+            if val > 0:
+                cell.fill = fill_green if status == 'Cobrado' else fill_pink
+        current_row += 1
+    inflow_end_row = current_row - 1
+    
+    # TOTAL ENTRADAS row
+    total_entradas_row = current_row
+    ws.cell(row=current_row, column=1, value="TOTAL ENTRADAS").font = font_total
+    ws.cell(row=current_row, column=1).fill = fill_totals
+    ws.cell(row=current_row, column=1).border = thin_border
+    for col_idx, q in enumerate(quincenas, start=2):
+        col_letter = get_column_letter(col_idx)
+        cell = ws.cell(row=current_row, column=col_idx, value=f"=SUM({col_letter}{inflow_start_row}:{col_letter}{inflow_end_row})")
+        cell.font = font_total
+        cell.number_format = '$#,##0.00'
+        cell.fill = fill_totals
+        cell.border = thin_border
+    current_row += 1
+    
+    # Section SALIDAS
+    ws.cell(row=current_row, column=1, value="SALIDAS (EGRESOS)").font = font_section
+    ws.cell(row=current_row, column=1).fill = fill_section
+    for col_idx in range(2, len(quincenas) + 2):
+        ws.cell(row=current_row, column=col_idx).fill = fill_section
+    current_row += 1
+    
+    outflow_start_row = current_row
+    for rname in outflow_rows:
+        ws.cell(row=current_row, column=1, value=rname).font = font_regular
+        ws.cell(row=current_row, column=1).border = thin_border
+        for col_idx, q in enumerate(quincenas, start=2):
+            val = df_values.loc[rname, q['label']]
+            status = df_status.loc[rname, q['label']]
+            cell = ws.cell(row=current_row, column=col_idx, value=val)
+            cell.font = font_regular
+            cell.number_format = '$#,##0.00'
+            cell.border = thin_border
+            if val > 0:
+                cell.fill = fill_green if status == 'Pagado' else fill_pink
+        current_row += 1
+    outflow_end_row = current_row - 1
+    
+    # TOTAL SALIDAS row
+    total_salidas_row = current_row
+    ws.cell(row=current_row, column=1, value="TOTAL SALIDAS").font = font_total
+    ws.cell(row=current_row, column=1).fill = fill_totals
+    ws.cell(row=current_row, column=1).border = thin_border
+    for col_idx in range(2, len(quincenas) + 2):
+        col_letter = get_column_letter(col_idx)
+        cell = ws.cell(row=total_salidas_row, column=col_idx, value=f"=SUM({col_letter}{outflow_start_row}:{col_letter}{outflow_end_row})")
+        cell.font = font_total
+        cell.number_format = '$#,##0.00'
+        cell.fill = fill_totals
+        cell.border = thin_border
+    current_row += 1
+    
+    # BALANCE row
+    balance_row = current_row
+    ws.cell(row=current_row, column=1, value="BALANCE (NETO)").font = font_total
+    ws.cell(row=current_row, column=1).border = thin_border
+    for col_idx, q in enumerate(quincenas, start=2):
+        col_letter = get_column_letter(col_idx)
+        cell = ws.cell(row=current_row, column=col_idx, value=f"={col_letter}{total_entradas_row}-{col_letter}{total_salidas_row}")
+        cell.font = font_total
+        cell.number_format = '$#,##0.00'
+        cell.border = thin_border
+    current_row += 1
+    
+    # SALDO ACUMULADO row
+    saldo_row = current_row
+    ws.cell(row=current_row, column=1, value="SALDO ACUMULADO").font = font_total
+    ws.cell(row=current_row, column=1).border = double_bottom_border
+    for col_idx, q in enumerate(quincenas, start=2):
+        col_letter = get_column_letter(col_idx)
+        if col_idx == 2:
+            cell = ws.cell(row=current_row, column=col_idx, value=f"={saldo_inicial}+{col_letter}{balance_row}")
+        else:
+            prev_col_letter = get_column_letter(col_idx - 1)
+            cell = ws.cell(row=current_row, column=col_idx, value=f"={prev_col_letter}{saldo_row}+{col_letter}{balance_row}")
+        cell.font = font_total
+        cell.number_format = '$#,##0.00'
+        cell.border = double_bottom_border
+        
+    # Auto-adjust columns width
+    for col in ws.columns:
+        max_len = max(len(str(cell.value or '')) for cell in col)
+        col_letter = get_column_letter(col[0].column)
+        ws.column_dimensions[col_letter].width = max(max_len + 3, 12)
+        
+    output = io.BytesIO()
+    wb.save(output)
+    return output.getvalue()

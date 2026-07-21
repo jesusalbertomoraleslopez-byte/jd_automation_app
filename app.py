@@ -210,15 +210,16 @@ st.sidebar.markdown("---")
 menu_options = [
     "1. 🏠 Inicio & Registro",
     "2. 📂 Carga Masiva (Excel)",
-    "3. 📊 Dashboards Interactivos",
-    "4. 💰 EBITDA & Reportes de Cuenta",
-    "5. 📁 Proyectos — Estado & Pareto",
-    "6. 🤖 Industria 4.0",
-    "7. 📖 Manual de Operación del Sistema"
+    "3. 🗓️ Flujo de Caja Proyectado",
+    "4. 📊 Dashboards Interactivos",
+    "5. 💰 EBITDA & Reportes de Cuenta",
+    "6. 📁 Proyectos — Estado & Pareto",
+    "7. 🤖 Industria 4.0",
+    "8. 📖 Manual de Operación del Sistema"
 ]
 
 if auth.es_admin():
-    menu_options.append("8. ⚙️ Mantenimiento del Sistema")
+    menu_options.append("9. ⚙️ Mantenimiento del Sistema")
 
 menu = st.sidebar.radio("Navegación del Sistema", menu_options)
 
@@ -786,8 +787,13 @@ elif menu.startswith("2."):
                     for err in result['errors']:
                         st.markdown(f"- {err}")
 
-# ─── MÓDULO 3: DASHBOARDS INTERACTIVOS ───────────────────────────────────────
+# ─── MÓDULO 3: FLUJO DE CAJA PROYECTADO ──────────────────────────────────────
 elif menu.startswith("3."):
+    render_header("Flujo de Caja Proyectado", "Proyecte, programe y controle el flujo de caja e ingresos/egresos del negocio.")
+    flujo.render_flujo_caja_modulo()
+
+# ─── MÓDULO 4: DASHBOARDS INTERACTIVOS ───────────────────────────────────────
+elif menu.startswith("4."):
     render_header("Dashboards de Análisis Financiero", "Visualice reportes operativos y estratégicos de J&D Automation Industries.")
     
     df_gastos_base = db.get_gastos_df()
@@ -834,7 +840,7 @@ elif menu.startswith("3."):
     if deduc_sel != "Todos":
         df_g_filtered = df_g_filtered[df_g_filtered['deducible'] == deduc_sel]
 
-    tab1, tab2, tab3 = st.tabs(["📊 3.1 Gastos Operativos", "📝 3.2 Backorder de OC", "📁 3.3 Rentabilidad de Proyectos"])
+    tab1, tab2, tab3 = st.tabs(["📊 4.1 Gastos Operativos", "📝 4.2 Backorder de OC", "📁 4.3 Rentabilidad de Proyectos"])
     
     with tab1:
         dash.render_gastos_dashboard(df_g_filtered)
@@ -845,14 +851,14 @@ elif menu.startswith("3."):
     with tab3:
         dash.render_proyectos_dashboard(df_proy_base, df_g_filtered)
 
-# ─── MÓDULO 4: EBITDA & REPORTES ─────────────────────────────────────────────
-elif menu.startswith("4."):
+# ─── MÓDULO 5: EBITDA & REPORTES ─────────────────────────────────────────────
+elif menu.startswith("5."):
     render_header("EBITDA & Reportes de Cuenta", "Calcule el rendimiento operativo de la empresa y exporte reportes por método de pago.")
     
     df_gastos = db.get_gastos_df()
     df_proy = db.get_proyectos()
     
-    tab_ebitda, tab_export, tab_flujo = st.tabs(["📊 4.1 Cálculo de EBITDA", "📥 4.2 Exportar Reportes", "📅 4.3 Flujo de Caja & Proyección"])
+    tab_ebitda, tab_export = st.tabs(["📊 5.1 Cálculo de EBITDA", "📥 5.2 Exportar Reportes"])
     
     with tab_ebitda:
         st.subheader("Cálculo del EBITDA")
@@ -1016,21 +1022,18 @@ elif menu.startswith("4."):
         with tab_cash:
             df_cash = df_gastos[df_gastos['metodo_pago'] == 'Efectivo']
             render_export_section(df_cash, "movimientos_efectivo")
-            
-        with tab_flujo:
-            flujo.render_flujo_caja_tab()
 
-# ─── MÓDULO 5: PROYECTOS — ESTADO & PARETO ───────────────────────────────────
-elif menu.startswith("5."):
+# ─── MÓDULO 6: PROYECTOS — ESTADO & PARETO ───────────────────────────────────
+elif menu.startswith("6."):
     render_header("Proyectos: Estado & Pareto de Costos", "Evalúe la salud financiera de sus proyectos y controle los conceptos de mayor costo.")
     
     df_gastos = db.get_gastos_df()
     df_proy = db.get_proyectos()
     
     tab_est, tab_pareto, tab_prog = st.tabs([
-        "📊 5.1 Estado General por Proyecto",
-        "📉 5.2 Pareto de Costos",
-        "📈 5.3 Progreso vs Presupuesto"
+        "📊 6.1 Estado General por Proyecto",
+        "📉 6.2 Pareto de Costos",
+        "📈 6.3 Progreso vs Presupuesto"
     ])
     
     with tab_est:
@@ -1051,15 +1054,15 @@ elif menu.startswith("5."):
     with tab_prog:
         proy_dash.render_progreso_presupuesto(df_proy, df_gastos)
 
-# ─── MÓDULO 6: INDUSTRIA 4.0 ─────────────────────────────────────────────────
-elif menu.startswith("6."):
+# ─── MÓDULO 7: INDUSTRIA 4.0 ─────────────────────────────────────────────────
+elif menu.startswith("7."):
     i40.render_industria40()
 
-# ─── MÓDULO 7: MANUAL DE OPERACIÓN ───────────────────────────────────────────
-elif menu.startswith("7."):
+# ─── MÓDULO 8: MANUAL DE OPERACIÓN ───────────────────────────────────────────
+elif menu.startswith("8."):
     man.render_manual()
 
-# ─── MÓDULO 8: MANTENIMIENTO DEL SISTEMA ─────────────────────────────────────
-elif menu.startswith("8."):
+# ─── MÓDULO 9: MANTENIMIENTO DEL SISTEMA ─────────────────────────────────────
+elif menu.startswith("9."):
     auth.requiere_admin()
     maint.render_mantenimiento()
