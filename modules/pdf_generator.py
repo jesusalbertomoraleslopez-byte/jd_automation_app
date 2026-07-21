@@ -58,7 +58,8 @@ class JDPdf(FPDF):
         self.cell(label_width, 7, label, fill=True, border=0)
         self.set_font('Helvetica', '', 9)
         self.set_text_color(30, 30, 30)
-        self.multi_cell(0, 7, str(value) if value else '—', fill=shade)
+        remaining_width = self.w - self.r_margin - self.x
+        self.multi_cell(remaining_width, 7, str(value) if value else '—', fill=shade)
 
 
 def generar_pdf_gasto(gasto: dict) -> bytes:
