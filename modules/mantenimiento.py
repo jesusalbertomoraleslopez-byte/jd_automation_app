@@ -17,12 +17,16 @@ def render_mantenimiento():
     </div>
     """, unsafe_allow_html=True)
 
-    tab_clasifs, tab_users, tab_records, tab_cleanup = st.tabs([
-        "⚙️ 8.1 Gestión de Clasificaciones",
-        "👥 8.2 Gestión de Usuarios",
-        "📝 8.3 Corrección de Registros",
-        "🗑️ 8.4 Limpieza de BD y Archivos"
+    tab_cuentas, tab_clasifs, tab_users, tab_records, tab_cleanup = st.tabs([
+        "💳 8.1 Cuentas & Tarjetas",
+        "⚙️ 8.2 Gestión de Clasificaciones",
+        "👥 8.3 Gestión de Usuarios",
+        "📝 8.4 Corrección de Registros",
+        "🗑️ 8.5 Limpieza de BD y Archivos"
     ])
+
+    with tab_cuentas:
+        _render_gestion_cuentas()
 
     with tab_clasifs:
         _render_gestion_clasificaciones()
@@ -35,6 +39,37 @@ def render_mantenimiento():
 
     with tab_cleanup:
         _render_limpieza_sistema()
+
+
+def _render_gestion_cuentas():
+    st.subheader("Administración de Cuentas y Tarjetas Bancarias")
+    col_list_c, col_form_c = st.columns([2, 1])
+    
+    with col_form_c:
+        st.markdown("#### **Registrar Cuenta / Tarjeta**")
+        c_nombre = st.text_input("Nombre / Identificador de Cuenta", placeholder="Ej. Banorte Operativa *4492")
+        c_tipo = st.selectbox("Método de Pago Asociado", ["Tarjeta de Crédito", "Transferencia Bancaria", "Efectivo"])
+        
+        if st.button("Guardar Cuenta"):
+            if c_nombre:
+                success, msg = db.add_cuenta(c_nombre, c_tipo)
+                if success:
+                    st.success(msg)
+                    st.rerun()
+                else:
+                    st.error(msg)
+            else:
+                st.warning("El nombre de la cuenta es obligatorio.")
+                
+    with col_list_c:
+        st.markdown("#### **Cuentas y Tarjetas Registradas**")
+        df_c = db.get_cuentas()
+        if not df_c.empty:
+            df_c_disp = df_c.copy()
+            df_c_disp.columns = ['ID', 'Identificador de Cuenta', 'Método de Pago Asociado']
+            st.dataframe(df_c_disp, use_container_width=True, hide_index=True)
+        else:
+            st.info("No hay cuentas registradas.")
 
 
 def _render_gestion_clasificaciones():

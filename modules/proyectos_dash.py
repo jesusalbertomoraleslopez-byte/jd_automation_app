@@ -36,7 +36,7 @@ def render_estado_proyectos(df_proy: pd.DataFrame, df_gastos: pd.DataFrame):
         else:
             sem_color = "#E05C5C"; sem_txt = "🔴 Alerta"
 
-        with st.expander(f"{'🟢' if activo else '⚪'} **{proy['nombre']}**  |  {sem_txt}", expanded=False):
+        with st.expander(f"{'🟢' if activo else '⚪'} {proy['nombre']}  |  {sem_txt}", expanded=False):
             c1, c2, c3, c4 = st.columns(4)
             c1.metric("Ingreso Contratado", f"${ingreso:,.0f}")
             c2.metric("Gasto Acumulado", f"${total_gasto:,.0f}", delta=f"{pct:.1f}% del presupuesto", delta_color="inverse")

@@ -208,18 +208,17 @@ st.sidebar.markdown("---")
 
 # Menú principal numerado con sub-secciones explicativas
 menu_options = [
-    "1. 🏠 Inicio & Registro",
-    "2. 📂 Carga Masiva (Excel)",
+    "1. 💵 Gastos — Captura & Carga Masiva",
+    "2. 📁 Proyectos — Gestión & Pareto",
     "3. 🗓️ Flujo de Caja Proyectado",
     "4. 📊 Dashboards Interactivos",
     "5. 💰 EBITDA & Reportes de Cuenta",
-    "6. 📁 Proyectos — Estado & Pareto",
-    "7. 🤖 Industria 4.0",
-    "8. 📖 Manual de Operación del Sistema"
+    "6. 🤖 Industria 4.0",
+    "7. 📖 Manual de Operación del Sistema"
 ]
 
 if auth.es_admin():
-    menu_options.append("9. ⚙️ Mantenimiento del Sistema")
+    menu_options.append("8. ⚙️ Mantenimiento del Sistema")
 
 menu = st.sidebar.radio("Navegación del Sistema", menu_options)
 
@@ -228,529 +227,48 @@ st.sidebar.info(
     "💡 **Regla Fiscal Homologada:** Todos los montos se ingresan como **MONTO NETO CON IVA INCLUIDO**."
 )
 
-# ─── MÓDULO 1: INICIO Y REGISTRO ─────────────────────────────────────────────
-if menu.startswith("1."):
-    render_header("Control de Registro", "Gestione proyectos, cuentas y capture los gastos de la operación diaria.")
+# ─── FUNCIONES AUXILIARES DE RENDERIZADO ──────────────────────────────────
+def _render_gestion_proyectos():
+    st.subheader("Alta & Gestión de Proyectos")
+    col_list, col_form = st.columns([2, 1])
     
-    tab_proyectos, tab_cuentas, tab_gastos, tab_backorder = st.tabs([
-        "📁 1.1 Proyectos", 
-        "💳 1.2 Cuentas & Tarjetas", 
-        "💵 1.3 Captura de Gasto", 
-        "📝 1.4 Órdenes de Compra (Backorder)"
-    ])
-    
-    # --- SUBTAB 1.1: PROYECTOS ---
-    with tab_proyectos:
-        st.subheader("Administración de Proyectos")
-        col_list, col_form = st.columns([2, 1])
+    with col_form:
+        st.markdown("#### **Crear Nuevo Proyecto**")
+        p_nombre = st.text_input("Nombre del Proyecto", placeholder="Ej. Línea C3 - Planta GM")
+        p_desc = st.text_area("Descripción", placeholder="Detalles de la cotización...")
+        p_monto = st.number_input("Ingreso Contratado (Monto Neto)", min_value=0.0, step=1000.0, format="%.2f")
+        p_activo = st.selectbox("Estado del Proyecto", ["Activo", "Inactivo"])
         
-        with col_form:
-            st.markdown("#### **Crear Nuevo Proyecto**")
-            p_nombre = st.text_input("Nombre del Proyecto", placeholder="Ej. Línea C3 - Planta GM")
-            p_desc = st.text_area("Descripción", placeholder="Detalles de la cotización...")
-            p_monto = st.number_input("Ingreso Contratado (Monto Neto)", min_value=0.0, step=1000.0, format="%.2f")
-            p_activo = st.selectbox("Estado del Proyecto", ["Activo", "Inactivo"])
-            
-            if st.button("Guardar Proyecto"):
-                if p_nombre:
-                    status = 1 if p_activo == "Activo" else 0
-                    success, msg = db.add_proyecto(p_nombre, p_desc, p_monto, status)
-                    if success:
-                        st.success(msg)
-                        st.rerun()
-                    else:
-                        st.error(msg)
+        if st.button("Guardar Proyecto"):
+            if p_nombre:
+                status = 1 if p_activo == "Activo" else 0
+                success, msg = db.add_proyecto(p_nombre, p_desc, p_monto, status)
+                if success:
+                    st.success(msg)
+                    st.rerun()
                 else:
-                    st.warning("El nombre del proyecto es obligatorio.")
-                    
-        with col_list:
-            st.markdown("#### **Proyectos Registrados**")
-            df_p = db.get_proyectos()
-            if not df_p.empty:
-                df_p_disp = df_p.copy()
-                df_p_disp['activo'] = df_p_disp['activo'].map({1: 'Activo', 0: 'Inactivo'})
-                df_p_disp['monto_ingreso'] = df_p_disp['monto_ingreso'].map('${:,.2f}'.format)
-                df_p_disp.columns = ['ID', 'Código', 'Nombre', 'Descripción', 'Ingreso Contratado (Neto)', 'Estado']
-                st.dataframe(df_p_disp, use_container_width=True, hide_index=True)
+                    st.error(msg)
             else:
-                st.info("No hay proyectos registrados.")
+                st.warning("El nombre del proyecto es obligatorio.")
                 
-    # --- SUBTAB 1.2: CUENTAS ---
-    with tab_cuentas:
-        st.subheader("Administración de Cuentas y Tarjetas")
-        col_list_c, col_form_c = st.columns([2, 1])
-        
-        with col_form_c:
-            st.markdown("#### **Registrar Cuenta / Tarjeta**")
-            c_nombre = st.text_input("Nombre / Identificador de Cuenta", placeholder="Ej. Banorte Operativa *4492")
-            c_tipo = st.selectbox("Método de Pago Asociado", ["Tarjeta de Crédito", "Transferencia Bancaria", "Efectivo"])
-            
-            if st.button("Guardar Cuenta"):
-                if c_nombre:
-                    success, msg = db.add_cuenta(c_nombre, c_tipo)
-                    if success:
-                        st.success(msg)
-                        st.rerun()
-                    else:
-                        st.error(msg)
-                else:
-                    st.warning("El nombre de la cuenta es obligatorio.")
-                    
-        with col_list_c:
-            st.markdown("#### **Cuentas y Tarjetas Registradas**")
-            df_c = db.get_cuentas()
-            if not df_c.empty:
-                df_c_disp = df_c.copy()
-                df_c_disp.columns = ['ID', 'Identificador de Cuenta', 'Método de Pago Asociado']
-                st.dataframe(df_c_disp, use_container_width=True, hide_index=True)
-            else:
-                st.info("No hay cuentas registradas.")
-                
-    # --- SUBTAB 1.3: CAPTURA DE GASTO (CON RESPALDO PDF AUTOMÁTICO) ---
-    with tab_gastos:
-        st.subheader("Captura Individual de Gastos Diarios")
-        
-        df_p_activos = db.get_proyectos(only_active=True)
-        df_c_all = db.get_cuentas()
-        
-        if df_p_activos.empty:
-            st.warning("⚠️ Para capturar gastos, primero debe registrar al menos un **Proyecto Activo**.")
-        elif df_c_all.empty:
-            st.warning("⚠️ Para capturar gastos, primero debe registrar al menos una **Cuenta/Tarjeta**.")
+    with col_list:
+        st.markdown("#### **Proyectos Registrados**")
+        df_p = db.get_proyectos()
+        if not df_p.empty:
+            df_p_disp = df_p.copy()
+            df_p_disp['activo'] = df_p_disp['activo'].map({1: 'Activo', 0: 'Inactivo'})
+            df_p_disp['monto_ingreso'] = df_p_disp['monto_ingreso'].map('${:,.2f}'.format)
+            df_p_disp.columns = ['ID', 'Código', 'Nombre', 'Descripción', 'Ingreso Contratado (Neto)', 'Estado']
+            st.dataframe(df_p_disp, use_container_width=True, hide_index=True)
         else:
-            # Si hay un PDF generado en la transacción anterior, mostrar botón de descarga prominente
-            if st.session_state.get('gasto_guardado_exito', False):
-                st.success("🎉 **¡Registro Exitoso!** El gasto se ha guardado en la base de datos.")
-                
-                col_ok_1, col_ok_2 = st.columns(2)
-                with col_ok_1:
-                    st.markdown("##### **📄 Descargar Respaldo Físico**")
-                    # Botón para descargar el PDF generado como respaldo obligatorio
-                    st.download_button(
-                        label="📥 Descargar Respaldo PDF (Obligatorio)",
-                        data=st.session_state['last_pdf_bytes'],
-                        file_name=st.session_state['last_pdf_name'],
-                        mime="application/pdf",
-                        use_container_width=True
-                    )
-                    
-                    st.markdown("<div style='height:40px;'></div>", unsafe_allow_html=True)
-                    if st.button("Capturar Otro Gasto", use_container_width=True):
-                        st.session_state['gasto_guardado_exito'] = False
-                        st.session_state['last_pdf_bytes'] = None
-                        st.session_state['last_pdf_name'] = None
-                        st.rerun()
-                
-                with col_ok_2:
-                    st.markdown("##### **📩 Enviar Notificación por Correo (.eml)**")
-                    df_users = db.get_usuarios_df()
-                    emails_registrados = []
-                    if not df_users.empty and 'email' in df_users.columns:
-                        emails_registrados = df_users['email'].dropna().tolist()
-                    
-                    opciones_email = emails_registrados + ["Otro correo..."]
-                    dest_email_sel = st.selectbox("Seleccione Correo Destinatario", opciones_email, key="individual_eml_dest")
-                    
-                    if dest_email_sel == "Otro correo...":
-                        dest_email = st.text_input("Escriba el correo destino", placeholder="ejemplo@jd-automation.com", key="individual_eml_txt").strip()
-                    else:
-                        dest_email = dest_email_sel
-                        
-                    if st.button("Generar Archivo EML de Notificación", use_container_width=True):
-                        if dest_email:
-                            try:
-                                subject = f"Registro de Egresos - Nuevo Gasto Folio - J&D Automation"
-                                body = f"Hola,\n\nSe ha capturado un nuevo gasto en el sistema de J&D Automation Industries.\n\nSe adjunta el recibo digital de respaldo del registro en formato PDF.\n\nSaludos,\nSistema de Control Financiero J&D."
-                                eml_data = generar_eml_bytes(dest_email, subject, body, st.session_state['last_pdf_bytes'], st.session_state['last_pdf_name'])
-                                st.download_button(
-                                    label="📥 Descargar Correo EML del Recibo",
-                                    data=eml_data,
-                                    file_name=f"{st.session_state['last_pdf_name']}.eml",
-                                    mime="message/rfc822",
-                                    use_container_width=True
-                                )
-                                st.success("✉️ Archivo EML generado con éxito. Ábralo en Outlook o Mail.")
-                            except Exception as e:
-                                st.error(f"Error al generar correo: {str(e)}")
-                        else:
-                            st.warning("Ingrese o seleccione un correo válido.")
-            else:
-                with st.form("manual_expense_form"):
-                    col_g1, col_g2 = st.columns(2)
-                    
-                    with col_g1:
-                        g_fecha = st.date_input("Fecha de Gasto", datetime.date.today())
-                        g_concepto = st.text_input("Concepto del Gasto", placeholder="Ej. Compra de relevadores y cableado")
-                        g_monto = st.number_input("Monto Neto (IVA Incluido)", min_value=0.01, step=50.0, format="%.2f")
-                        
-                        # --- CLASIFICACIONES DE 3 NIVELES OPCIONALES (allow_blank) ---
-                        rubros_lista = ["— Dejar en blanco —"] + list(CLASIFICACIONES.keys())
-                        g_rubro_raw = st.selectbox("Rubro Principal (Opcional)", rubros_lista)
-                        
-                        if g_rubro_raw != "— Dejar en blanco —":
-                            g_rubro = g_rubro_raw
-                            subrubros_lista = ["— Dejar en blanco —"] + list(CLASIFICACIONES[g_rubro].keys())
-                            g_subrubro_raw = st.selectbox("Subrubro (Opcional)", subrubros_lista)
-                            
-                            if g_subrubro_raw != "— Dejar en blanco —":
-                                g_subrubro = g_subrubro_raw
-                                conceptos_lista = ["— Dejar en blanco —"] + CLASIFICACIONES[g_rubro][g_subrubro]
-                                g_concepto_det_raw = st.selectbox("Concepto Detallado (Opcional)", conceptos_lista)
-                                g_concepto_detallado = g_concepto_det_raw if g_concepto_det_raw != "— Dejar en blanco —" else None
-                            else:
-                                g_subrubro = None
-                                g_concepto_detallado = None
-                        else:
-                            g_rubro = None
-                            g_subrubro = None
-                            g_concepto_detallado = None
-                            
-                        proyecto_options = dict(zip('[' + df_p_activos['codigo'] + '] ' + df_p_activos['nombre'], df_p_activos['id']))
-                        g_proy_name = st.selectbox("Proyecto Asociado", list(proyecto_options.keys()))
-                        g_proy_id = proyecto_options[g_proy_name]
-                        
-                    with col_g2:
-                        g_deducible = st.selectbox("¿Deducible / Facturable?", ["Sí", "No"])
-                        g_estado_fact = st.selectbox("Estatus de Facturación", ["Pendiente", "Facturado"])
-                        g_metodo = st.selectbox("Método de Pago", ["Tarjeta de Crédito", "Transferencia Bancaria", "Efectivo"])
-                        
-                        df_c_filtradas = df_c_all[df_c_all['tipo'] == g_metodo]
-                        if df_c_filtradas.empty:
-                            st.error(f"No hay cuentas de tipo: {g_metodo}. Regístrelas en Cuentas & Tarjetas.")
-                            g_cuenta_id = None
-                            g_cuenta_name = "—"
-                        else:
-                            cuenta_options = dict(zip(df_c_filtradas['nombre'], df_c_filtradas['id']))
-                            g_cuenta_name = st.selectbox("Cuenta / Tarjeta Origen", list(cuenta_options.keys()))
-                            g_cuenta_id = cuenta_options[g_cuenta_name]
+            st.info("No hay proyectos registrados.")
 
-                    st.markdown("---")
-                    col_sat, col_img = st.columns(2)
-                    with col_sat:
-                        st.markdown("#### **Comprobantes SAT (Opcional)**")
-                        col_file1, col_file2 = st.columns(2)
-                        with col_file1:
-                            uploaded_xml = st.file_uploader("Cargar XML de la Factura (CFDI)", type=["xml"], key="manual_xml")
-                        with col_file2:
-                            uploaded_pdf = st.file_uploader("Cargar PDF de la Factura", type=["pdf"], key="manual_pdf")
-                    with col_img:
-                        st.markdown("#### **Comprobante de Transferencia / Foto (Opcional)**")
-                        uploaded_img = st.file_uploader("📷 Subir Foto o Seleccionar Archivo", type=["png", "jpg", "jpeg"], key="manual_img")
-                        
-                        st.markdown("##### **📋 Pegar desde Portapapeles (PC / Captura)**")
-                        import streamlit.components.v1 as components
-                        components.html(
-                            """
-                            <div id="paste-box" style="border: 2px dashed #FE8C29; padding: 15px; text-align: center; border-radius: 8px; font-family: sans-serif; color: #434E62; background: #FFF; cursor: pointer;">
-                                <button id="btn-paste" type="button" style="background: #FE8C29; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; font-family: sans-serif; font-size: 13px;">
-                                    📋 Pegar Captura del Portapapeles
-                                </button>
-                                <p style="font-size: 11px; margin-top: 8px; color: #8C96A6; line-height: 1.4;">
-                                    Haz clic en el botón (o selecciona este recuadro y presiona <b>Ctrl+V</b>) para pegar el comprobante copiado.
-                                </p>
-                                <img id="preview" style="max-width: 100%; max-height: 100px; display: none; margin: 10px auto 0 auto; border-radius: 4px; border: 1px solid #EDEDED;" />
-                            </div>
-                            <script>
-                                const btn = document.getElementById('btn-paste');
-                                const preview = document.getElementById('preview');
-                                
-                                function handleImage(base64) {
-                                    preview.src = base64;
-                                    preview.style.display = 'block';
-                                    
-                                    try {
-                                        const inputs = window.parent.document.querySelectorAll('input');
-                                        for (let input of inputs) {
-                                            if (input.placeholder === "PASTE_IMAGE_PLACEHOLDER") {
-                                                input.value = base64;
-                                                input.dispatchEvent(new Event('input', { bubbles: true }));
-                                                break;
-                                            }
-                                        }
-                                    } catch (e) {
-                                        console.log("Error: " + e.message);
-                                    }
-                                }
-                                
-                                document.addEventListener('paste', (e) => {
-                                    const items = (e.clipboardData || e.originalEvent.clipboardData).items;
-                                    for (let item of items) {
-                                        if (item.kind === 'file' && item.type.startsWith('image/')) {
-                                            const blob = item.getAsFile();
-                                            const reader = new FileReader();
-                                            reader.onload = function(event) {
-                                                handleImage(event.target.result);
-                                            };
-                                            reader.readAsDataURL(blob);
-                                        }
-                                    }
-                                });
-                                
-                                btn.addEventListener('click', async () => {
-                                    try {
-                                        const items = await navigator.clipboard.read();
-                                        for (let item of items) {
-                                            for (let type of item.types) {
-                                                if (type.startsWith('image/')) {
-                                                    const blob = await item.getType(type);
-                                                    const reader = new FileReader();
-                                                    reader.onload = function(event) {
-                                                        handleImage(event.target.result);
-                                                    };
-                                                    reader.readAsDataURL(blob);
-                                                }
-                                            }
-                                        }
-                                    } catch (err) {
-                                        alert("Por favor, haz clic dentro del recuadro punteado y presiona Ctrl+V para pegar directamente.");
-                                    }
-                                });
-                            </script>
-                            """,
-                            height=170
-                        )
-                        pasted_img_base64 = st.text_input(
-                            "Base64 pegado", 
-                            placeholder="PASTE_IMAGE_PLACEHOLDER", 
-                            label_visibility="collapsed"
-                        )
-
-                    xml_rfc = None
-                    xml_uuid = None
-                    xml_total = None
-                    xml_file_saved = None
-                    pdf_file_saved = None
-                    img_file_saved = None
-                    
-                    if uploaded_xml:
-                        xml_data = uploaded_xml.read()
-                        parsed_res = parse_cfdi_xml(xml_data)
-                        if parsed_res['success']:
-                            xml_rfc = parsed_res['rfc_proveedor']
-                            xml_uuid = parsed_res['uuid']
-                            xml_total = parsed_res['total']
-                            
-                            xml_file_saved = f"xml_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}_{uploaded_xml.name}"
-                            with open(os.path.join(COMPROBANTES_DIR, xml_file_saved), "wb") as f:
-                                f.write(xml_data)
-                        else:
-                            st.error(parsed_res['error'])
-                    
-                    if uploaded_pdf:
-                        pdf_data = uploaded_pdf.read()
-                        pdf_file_saved = f"pdf_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}_{uploaded_pdf.name}"
-                        with open(os.path.join(COMPROBANTES_DIR, pdf_file_saved), "wb") as f:
-                            f.write(pdf_data)
-
-                    if uploaded_img:
-                        img_data = uploaded_img.read()
-                        img_file_saved = f"img_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}_{uploaded_img.name}"
-                        with open(os.path.join(COMPROBANTES_DIR, img_file_saved), "wb") as f:
-                            f.write(img_data)
-                    elif pasted_img_base64 and pasted_img_base64.startswith("data:image/"):
-                        try:
-                            import base64
-                            header, encoded = pasted_img_base64.split(",", 1)
-                            img_data = base64.b64decode(encoded)
-                            img_file_saved = f"img_pasted_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}.png"
-                            with open(os.path.join(COMPROBANTES_DIR, img_file_saved), "wb") as f:
-                                f.write(img_data)
-                        except Exception as e:
-                            st.error(f"Error al decodificar la imagen pegada: {str(e)}")
-
-                    if xml_uuid:
-                        st.info(f"📁 **Información Extraída del XML:**\n- RFC: `{xml_rfc}`\n- UUID: `{xml_uuid}`\n- Total XML: `${xml_total:,.2f}`")
-                        if abs(xml_total - g_monto) > 0.05:
-                            st.warning(f"⚠️ El monto ingresado (${g_monto:,.2f}) difiere del total del XML (${xml_total:,.2f}).")
-                        else:
-                            st.success("✅ Validación Exitosa: El monto coincide con el archivo XML.")
-
-                    btn_submit = st.form_submit_button("Guardar Gasto")
-                    
-                    if btn_submit:
-                        if not g_cuenta_id:
-                            st.error("❌ Debe seleccionar una cuenta origen válida.")
-                        else:
-                            if g_estado_fact == "Facturado" and (not xml_uuid or not uploaded_pdf):
-                                st.warning("⚠️ Nota: Se registró el gasto en estado 'Facturado' sin adjuntar los comprobantes XML/PDF completos.")
-                            fecha_str = g_fecha.strftime('%Y-%m-%d')
-                            success, insert_id = db.add_gasto(
-                                fecha=fecha_str,
-                                concepto=g_concepto,
-                                monto_neto=g_monto,
-                                rubro=g_rubro,
-                                subrubro=g_subrubro,
-                                concepto_detallado=g_concepto_detallado,
-                                proyecto_id=g_proy_id,
-                                deducible=g_deducible,
-                                estado_facturacion=g_estado_fact,
-                                metodo_pago=g_metodo,
-                                cuenta_id=g_cuenta_id,
-                                rfc_proveedor=xml_rfc,
-                                uuid_fiscal=xml_uuid,
-                                xml_filename=xml_file_saved,
-                                pdf_filename=None,
-                                comprobante_img_filename=img_file_saved
-                            )
-                            
-                            if success:
-                                # --- GENERACIÓN DEL PDF DE RESPALDO (OBLIGATORIO) ---
-                                gasto_pdf_info = {
-                                    'id': insert_id,
-                                    'fecha': fecha_str,
-                                    'concepto': g_concepto,
-                                    'monto_neto': g_monto,
-                                    'proyecto_nombre': g_proy_name,
-                                    'metodo_pago': g_metodo,
-                                    'cuenta_nombre': g_cuenta_name,
-                                    'rubro': g_rubro,
-                                    'subrubro': g_subrubro,
-                                    'concepto_detallado': g_concepto_detallado,
-                                    'deducible': g_deducible,
-                                    'estado_facturacion': g_estado_fact,
-                                    'rfc_proveedor': xml_rfc,
-                                    'uuid_fiscal': xml_uuid
-                                }
-                                
-                                # Generar recibo PDF
-                                pdf_bytes = pdf_gen.generar_pdf_gasto(gasto_pdf_info)
-                                local_pdf_name = f"recibo_gasto_{insert_id}_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}.pdf"
-                                
-                                # Guardar PDF de respaldo físico en el servidor
-                                with open(os.path.join(COMPROBANTES_DIR, local_pdf_name), "wb") as f:
-                                    f.write(pdf_bytes)
-                                    
-                                # Asociar el archivo PDF de respaldo en la base de datos
-                                db.update_gasto(insert_id, pdf_filename=local_pdf_name)
-                                
-                                # Almacenar en sesión para descarga instantánea
-                                st.session_state['last_pdf_bytes'] = pdf_bytes
-                                st.session_state['last_pdf_name'] = local_pdf_name
-                                st.session_state['gasto_guardado_exito'] = True
-                                st.rerun()
-                            else:
-                                st.error(f"Error al guardar gasto: {insert_id}")
-                                
-            # Tabla de gastos recientes (solo lectura rápida, eliminación bloqueada para no administradores)
-            st.markdown("---")
-            st.markdown("#### **Gastos Recientes**")
-            df_g = db.get_gastos_df()
-            if not df_g.empty:
-                # Sumatoria sub-total
-                subtotal_gastos = df_g['monto_neto'].sum()
-                
-                col_sub1, col_sub2 = st.columns([1, 3])
-                with col_sub1:
-                    st.metric("Subtotal de Gastos", f"${subtotal_gastos:,.2f} MXN")
-                
-                df_g_disp = df_g.copy()
-                df_g_disp['monto_neto'] = df_g_disp['monto_neto'].map('${:,.2f}'.format)
-                df_g_disp['Foto'] = df_g_disp['comprobante_img_filename'].apply(lambda x: '📷 Sí' if x else 'No')
-                
-                cols_to_show = [
-                    'id', 'fecha', 'concepto', 'monto_neto', 'rubro', 'subrubro', 'concepto_detallado',
-                    'proyecto_nombre', 'deducible', 'estado_facturacion', 
-                    'metodo_pago', 'cuenta_nombre', 'rfc_proveedor', 'uuid_fiscal', 'Foto'
-                ]
-                df_renamed = df_g_disp[cols_to_show].rename(columns={
-                    'id': 'Folio', 'fecha': 'Fecha', 'concepto': 'Concepto Gral', 
-                    'monto_neto': 'Monto Neto', 'rubro': 'Rubro Principal', 
-                    'subrubro': 'Subrubro', 'concepto_detallado': 'Concepto Detallado',
-                    'proyecto_nombre': 'Proyecto', 'deducible': 'Deducible', 
-                    'estado_facturacion': 'Estatus Fact.', 'metodo_pago': 'Método Pago', 
-                    'cuenta_nombre': 'Cuenta/Tarjeta', 'rfc_proveedor': 'RFC Proveedor', 
-                    'uuid_fiscal': 'UUID'
-                })
-                
-                # Resaltar filas del día de hoy en color naranja suave (#FFE6D5)
-                today_str = datetime.date.today().strftime('%Y-%m-%d')
-                def style_row(row):
-                    if row['Fecha'] == today_str:
-                        return ['background-color: #FFE6D5; color: #434E62; font-weight: bold;'] * len(row)
-                    return [''] * len(row)
-                
-                styler = df_renamed.style.apply(style_row, axis=1)
-                st.dataframe(styler, use_container_width=True, hide_index=True)
-                
-                # Visualización de comprobante de imagen
-                df_with_img = df_g[df_g['comprobante_img_filename'].notna() & (df_g['comprobante_img_filename'] != '')]
-                if not df_with_img.empty:
-                    with st.expander("📷 Visualizar Comprobante de Transferencia / Fotos"):
-                        img_select_opts = dict(zip(df_with_img['id'].astype(str) + " - " + df_with_img['concepto'], df_with_img['comprobante_img_filename']))
-                        selected_img_key = st.selectbox("Seleccione Gasto para ver la foto:", list(img_select_opts.keys()))
-                        selected_img_file = img_select_opts[selected_img_key]
-                        img_path = os.path.join(COMPROBANTES_DIR, selected_img_file)
-                        if os.path.exists(img_path):
-                            st.image(img_path, caption=f"Comprobante del Gasto: {selected_img_key}", use_container_width=True)
-            else:
-                st.info("No hay gastos registrados.")
-
-    # --- SUBTAB 1.4: ORDENES DE COMPRA ---
-    with tab_backorder:
-        st.subheader("Control del Backorder de Órdenes de Compra (OC)")
-        col_list_b, col_form_b = st.columns([2, 1])
-        
-        with col_form_b:
-            st.markdown("#### **Registrar OC en Backorder**")
-            oc_num = st.text_input("Número / Folio de OC", placeholder="Ej. OC-2026-042")
-            oc_prov = st.text_input("Proveedor", placeholder="Ej. Festo Pneumatic")
-            oc_fecha = st.date_input("Fecha Compromiso de Pago", datetime.date.today())
-            oc_monto = st.number_input("Monto de la OC (IVA Incluido)", min_value=0.0, step=100.0, format="%.2f")
-            
-            # Asociar a proyecto
-            proyecto_options_b = dict(zip('[' + df_p_activos['codigo'] + '] ' + df_p_activos['nombre'], df_p_activos['id']))
-            oc_proy_name = st.selectbox("Proyecto Destino", list(proyecto_options_b.keys()), key="oc_proy_sel")
-            oc_proy_id = proyecto_options_b[oc_proy_name]
-            
-            if st.button("Guardar OC"):
-                if oc_num and oc_prov:
-                    success, msg = db.add_backorder(
-                        numero_oc=oc_num,
-                        proveedor=oc_prov,
-                        fecha_compromiso=oc_fecha.strftime('%Y-%m-%d'),
-                        monto_oc=oc_monto,
-                        proyecto_id=oc_proy_id
-                    )
-                    if success:
-                        st.success(msg)
-                        st.rerun()
-                    else:
-                        st.error(msg)
-                else:
-                    st.warning("El número de OC y el proveedor son requeridos.")
-                    
-        with col_list_b:
-            st.markdown("#### **Órdenes de Compra Registradas**")
-            df_b = db.get_backorders_df()
-            if not df_b.empty:
-                df_b_disp = df_b.copy()
-                df_b_disp['monto_oc'] = df_b_disp['monto_oc'].map('${:,.2f}'.format)
-                df_b_disp.columns = ['ID', 'Folio OC', 'Proveedor', 'Fecha Compromiso', 'Monto OC', 'Proyecto Destino', 'ID Proyecto', 'Estado de Pago']
-                st.dataframe(df_b_disp.drop(columns=['ID Proyecto']), use_container_width=True, hide_index=True)
-                
-                with st.expander("🔄 Cambiar Estado de Pago de OC"):
-                    oc_select_opts = dict(zip(df_b['numero_oc'], df_b['id']))
-                    selected_oc = st.selectbox("Seleccione Folio OC", list(oc_select_opts.keys()))
-                    new_state = st.selectbox("Nuevo Estado", ["Pendiente", "Pagado"])
-                    if st.button("Actualizar Estado"):
-                        selected_id = oc_select_opts[selected_oc]
-                        up_ok, up_msg = db.update_backorder_status(selected_id, new_state)
-                        if up_ok:
-                            st.success(up_msg)
-                            st.rerun()
-                        else:
-                            st.error(up_msg)
-            else:
-                st.info("No hay órdenes de compra registradas.")
-
-# ─── MÓDULO 2: CARGA MASIVA ──────────────────────────────────────────────────
-elif menu.startswith("2."):
-    render_header("Carga Masiva (Excel)", "Descargue la plantilla de validación y cargue los gastos diarios de forma transaccional.")
-    
+def _render_carga_masiva_excel():
+    st.subheader("Carga Masiva de Gastos (Excel)")
     col_d1, col_d2 = st.columns([1, 2])
     
     with col_d1:
-        st.markdown("### **2.1 Descargar Plantilla**")
+        st.markdown("### **Descargar Plantilla**")
         st.markdown(
             "Esta plantilla incluye listas de validación dinámicas vinculadas a sus Proyectos Activos y Clasificaciones configuradas."
         )
@@ -769,7 +287,7 @@ elif menu.startswith("2."):
             st.error(f"Error al generar la plantilla: {str(e)}")
             
     with col_d2:
-        st.markdown("### **2.2 Importar Gastos**")
+        st.markdown("### **Importar Gastos**")
         st.markdown("Suba el archivo Excel lleno para validar e importar múltiples registros.")
         
         uploaded_excel = st.file_uploader("Subir Archivo Excel", type=["xlsx", "xls"])
@@ -786,6 +304,375 @@ elif menu.startswith("2."):
                     st.error("❌ Se encontraron errores de validación. No se importó ningún registro:")
                     for err in result['errors']:
                         st.markdown(f"- {err}")
+
+def _render_control_backorder():
+    st.subheader("Control del Backorder de Órdenes de Compra (OC)")
+    df_p_activos = db.get_proyectos(only_active=True)
+    if df_p_activos.empty:
+        st.warning("⚠️ Debe tener al menos un proyecto activo para registrar órdenes de compra.")
+        return
+        
+    col_list_b, col_form_b = st.columns([2, 1])
+    
+    with col_form_b:
+        st.markdown("#### **Registrar OC en Backorder**")
+        oc_num = st.text_input("Número / Folio de OC", placeholder="Ej. OC-2026-042")
+        oc_prov = st.text_input("Proveedor", placeholder="Ej. Festo Pneumatic")
+        oc_fecha = st.date_input("Fecha Compromiso de Pago", datetime.date.today())
+        oc_monto = st.number_input("Monto de la OC (IVA Incluido)", min_value=0.0, step=100.0, format="%.2f")
+        
+        proyecto_options_b = dict(zip('[' + df_p_activos['codigo'] + '] ' + df_p_activos['nombre'], df_p_activos['id']))
+        oc_proy_name = st.selectbox("Proyecto Destino", list(proyecto_options_b.keys()), key="oc_proy_sel")
+        oc_proy_id = proyecto_options_b[oc_proy_name]
+        
+        if st.button("Guardar OC"):
+            if oc_num and oc_prov:
+                success, msg = db.add_backorder(
+                    numero_oc=oc_num,
+                    proveedor=oc_prov,
+                    fecha_compromiso=oc_fecha.strftime('%Y-%m-%d'),
+                    monto_oc=oc_monto,
+                    proyecto_id=oc_proy_id
+                )
+                if success:
+                    st.success(msg)
+                    st.rerun()
+                else:
+                    st.error(msg)
+            else:
+                st.warning("El número de OC y el proveedor son requeridos.")
+                
+    with col_list_b:
+        st.markdown("#### **Órdenes de Compra Registradas**")
+        df_b = db.get_backorders_df()
+        if not df_b.empty:
+            df_b_disp = df_b.copy()
+            df_b_disp['monto_oc'] = df_b_disp['monto_oc'].map('${:,.2f}'.format)
+            df_b_disp.columns = ['ID', 'Folio OC', 'Proveedor', 'Fecha Compromiso', 'Monto OC', 'Proyecto Destino', 'ID Proyecto', 'Estado de Pago']
+            st.dataframe(df_b_disp.drop(columns=['ID Proyecto']), use_container_width=True, hide_index=True)
+            
+            with st.expander("🔄 Cambiar Estado de Pago de OC"):
+                oc_select_opts = dict(zip(df_b['numero_oc'], df_b['id']))
+                selected_oc = st.selectbox("Seleccione Folio OC", list(oc_select_opts.keys()))
+                new_state = st.selectbox("Nuevo Estado", ["Pendiente", "Pagado"])
+                if st.button("Actualizar Estado"):
+                    selected_id = oc_select_opts[selected_oc]
+                    up_ok, up_msg = db.update_backorder_status(selected_id, new_state)
+                    if up_ok:
+                        st.success(up_msg)
+                        st.rerun()
+                    else:
+                        st.error(up_msg)
+        else:
+            st.info("No hay órdenes de compra registradas.")
+
+def _render_captura_individual_gasto():
+    st.subheader("Captura Individual de Gastos Diarios")
+    
+    df_p_activos = db.get_proyectos(only_active=True)
+    df_c_all = db.get_cuentas()
+    
+    if df_p_activos.empty:
+        st.warning("⚠️ Para capturar gastos, primero debe registrar al menos un **Proyecto Activo**.")
+    elif df_c_all.empty:
+        st.warning("⚠️ Para capturar gastos, primero debe registrar al menos una **Cuenta/Tarjeta**.")
+    else:
+        if st.session_state.get('gasto_guardado_exito', False):
+            st.success("🎉 **¡Registro Exitoso!** El gasto se ha guardado en la base de datos.")
+            
+            col_ok_1, col_ok_2 = st.columns(2)
+            with col_ok_1:
+                st.markdown("##### **📄 Descargar Respaldo Físico**")
+                st.download_button(
+                    label="📥 Descargar Respaldo PDF (Obligatorio)",
+                    data=st.session_state['last_pdf_bytes'],
+                    file_name=st.session_state['last_pdf_name'],
+                    mime="application/pdf",
+                    use_container_width=True
+                )
+                
+                st.markdown("<div style='height:40px;'></div>", unsafe_allow_html=True)
+                if st.button("Capturar Otro Gasto", use_container_width=True):
+                    st.session_state['gasto_guardado_exito'] = False
+                    st.session_state['last_pdf_bytes'] = None
+                    st.session_state['last_pdf_name'] = None
+                    st.rerun()
+            
+            with col_ok_2:
+                st.markdown("##### **📩 Enviar Notificación por Correo (.eml)**")
+                df_users = db.get_usuarios_df()
+                emails_registrados = []
+                if not df_users.empty and 'email' in df_users.columns:
+                    emails_registrados = df_users['email'].dropna().tolist()
+                
+                email_destino = st.selectbox(
+                    "Seleccione Correo Destino:",
+                    options=["david.alanis@jydautomation.com.mx", "jesus.morales@jydautomation.com.mx", "administracion@jydautomation.com.mx"] + emails_registrados
+                )
+                
+                asunto_eml = f"Notificación de Gasto Registrado — Folio Interno J&D"
+                cuerpo_eml = f"""Estimado(a),
+
+Se ha registrado un nuevo gasto operativo en el Sistema de Control Financiero J&D Automation Industries.
+
+Detalles del Registro:
+----------------------------------------
+* Respaldo PDF: Adjunto a este correo
+
+Por favor revise el documento PDF adjunto como comprobante oficial del movimiento.
+
+Saludos cordiales,
+Sistema de Control Financiero | J&D Automation Industries"""
+                
+                eml_data = generar_eml_bytes(
+                    to_email=email_destino,
+                    subject=asunto_eml,
+                    body_text=cuerpo_eml,
+                    attachment_bytes=st.session_state['last_pdf_bytes'],
+                    attachment_name=st.session_state['last_pdf_name']
+                )
+                
+                st.download_button(
+                    label="✉️ Descargar Archivo .EML (Para Outlook)",
+                    data=eml_data,
+                    file_name=f"notificacion_gasto_{st.session_state.get('last_pdf_name', 'recibo').replace('.pdf', '')}.eml",
+                    mime="message/rfc822",
+                    use_container_width=True
+                )
+        
+        else:
+            with st.form("form_captura_gasto", clear_on_submit=True):
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.markdown("##### **1. Información Transaccional**")
+                    fecha_g = st.date_input("Fecha de Gasto", datetime.date.today())
+                    concepto_g = st.text_input("Concepto del Gasto", placeholder="Ej. Compra de relevadores y cableado")
+                    monto_g = st.number_input("Monto Neto (IVA Incluido)", min_value=0.01, step=10.0, format="%.2f")
+                    
+                    st.markdown("##### **2. Jerarquía de Clasificación (Opcional)**")
+                    clasifs_dict = db.get_clasificaciones_dict()
+                    rubro_options = ["— Dejar en blanco —"] + list(clasifs_dict.keys())
+                    rubro_sel = st.selectbox("Rubro Principal (Opcional)", rubro_options)
+                    
+                    if rubro_sel != "— Dejar en blanco —":
+                        subrubros_dict = clasifs_dict.get(rubro_sel, {})
+                        subrubro_options = ["— Dejar en blanco —"] + list(subrubros_dict.keys())
+                        subrubro_sel = st.selectbox("Subrubro (Opcional)", subrubro_options)
+                        
+                        if subrubro_sel != "— Dejar en blanco —":
+                            conceptos_list = subrubros_dict.get(subrubro_sel, [])
+                            concepto_det_options = ["— Dejar en blanco —"] + conceptos_list
+                            concepto_det_sel = st.selectbox("Concepto Detallado (Opcional)", concepto_det_options)
+                        else:
+                            concepto_det_sel = None
+                    else:
+                        subrubro_sel = None
+                        concepto_det_sel = None
+                        
+                    proyecto_options = dict(zip('[' + df_p_activos['codigo'] + '] ' + df_p_activos['nombre'], df_p_activos['id']))
+                    proy_name = st.selectbox("Proyecto Asociado", list(proyecto_options.keys()))
+                    proy_id = proyecto_options[proy_name]
+                    
+                with col2:
+                    st.markdown("##### **3. Datos Fiscales y Método de Pago**")
+                    deducible = st.selectbox("¿Deducible / Facturable?", ["Sí", "No"])
+                    estado_fact = st.selectbox("Estatus de Facturación", ["Pendiente", "Facturado"])
+                    metodo_pago = st.selectbox("Método de Pago", ["Tarjeta de Crédito", "Transferencia Bancaria", "Efectivo"])
+                    
+                    df_c_filtered = df_c_all[df_c_all['tipo'] == metodo_pago]
+                    if not df_c_filtered.empty:
+                        cuenta_options = dict(zip(df_c_filtered['nombre'], df_c_filtered['id']))
+                        cuenta_name = st.selectbox("Cuenta / Tarjeta Origen", list(cuenta_options.keys()))
+                        cuenta_id = cuenta_options[cuenta_name]
+                    else:
+                        cuenta_id = None
+                        st.warning(f"No hay cuentas configuradas para {metodo_pago}.")
+                        
+                    st.markdown("##### **4. Soporte Digital (CFDI / XML & Fotos)**")
+                    xml_file = st.file_uploader("Adjuntar XML de Factura (CFDI)", type=["xml"])
+                    img_file = st.file_uploader("Adjuntar Foto / Comprobante (JPG, PNG)", type=["jpg", "jpeg", "png"])
+                    
+                    rfc_prov = None
+                    uuid_fisc = None
+                    
+                    if xml_file is not None:
+                        xml_bytes = xml_file.read()
+                        xml_info = parse_cfdi_xml(xml_bytes)
+                        if xml_info['valid']:
+                            st.success(f"✓ CFDI Válido | RFC: {xml_info['rfc_emisor']} | UUID: {xml_info['uuid'][:8]}...")
+                            rfc_prov = xml_info['rfc_emisor']
+                            uuid_fisc = xml_info['uuid']
+                            if abs(xml_info['total'] - monto_g) > 0.05:
+                                st.warning(f"⚠️ El total del XML (${xml_info['total']:,.2f}) no coincide exactamente con el monto ingresado (${monto_g:,.2f}).")
+                        else:
+                            st.error(f"❌ Error en XML: {xml_info['error']}")
+                            
+                submit_gasto = st.form_submit_button("🚀 Registrar Gasto Oficialmente", use_container_width=True)
+                
+                if submit_gasto:
+                    if not concepto_g:
+                        st.error("El concepto del gasto es obligatorio.")
+                    elif cuenta_id is None:
+                        st.error("Debe seleccionar una cuenta de cargo válida.")
+                    else:
+                        rubro_val = rubro_sel if rubro_sel != "— Dejar en blanco —" else None
+                        subrubro_val = subrubro_sel if subrubro_sel != "— Dejar en blanco —" else None
+                        detallado_val = concepto_det_sel if concepto_det_sel != "— Dejar en blanco —" else None
+                        
+                        img_filename = None
+                        if img_file is not None:
+                            img_ext = os.path.splitext(img_file.name)[1]
+                            img_filename = f"comprobante_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}{img_ext}"
+                            img_path = os.path.join(COMPROBANTES_DIR, img_filename)
+                            with open(img_path, "wb") as f:
+                                f.write(img_file.read())
+                                
+                        xml_filename = None
+                        if xml_file is not None and xml_info.get('valid', False):
+                            xml_filename = f"cfdi_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}.xml"
+                            xml_path = os.path.join(COMPROBANTES_DIR, xml_filename)
+                            with open(xml_path, "wb") as f:
+                                f.write(xml_bytes)
+                                
+                        success, insert_id = db.add_gasto(
+                            fecha=fecha_g.strftime('%Y-%m-%d'),
+                            concepto=concepto_g,
+                            monto_neto=monto_g,
+                            rubro=rubro_val,
+                            subrubro=subrubro_val,
+                            concepto_detallado=detallado_val,
+                            proyecto_id=proy_id,
+                            deducible=deducible,
+                            estado_facturacion=estado_fact,
+                            metodo_pago=metodo_pago,
+                            cuenta_id=cuenta_id,
+                            rfc_proveedor=rfc_prov,
+                            uuid_fiscal=uuid_fisc,
+                            xml_filename=xml_filename,
+                            comprobante_img_filename=img_filename
+                        )
+                        
+                        if success:
+                            gasto_pdf_info = {
+                                'id': insert_id,
+                                'fecha': fecha_g.strftime('%Y-%m-%d'),
+                                'concepto': concepto_g,
+                                'monto_neto': monto_g,
+                                'proyecto_nombre': proy_name,
+                                'metodo_pago': metodo_pago,
+                                'cuenta_nombre': cuenta_name,
+                                'rubro': rubro_val,
+                                'subrubro': subrubro_val,
+                                'concepto_detallado': detallado_val,
+                                'deducible': deducible,
+                                'estado_facturacion': estado_fact,
+                                'rfc_proveedor': rfc_prov,
+                                'uuid_fiscal': uuid_fisc
+                            }
+                            
+                            pdf_bytes = pdf_gen.generar_pdf_gasto(gasto_pdf_info)
+                            local_pdf_name = f"recibo_gasto_{insert_id}_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}.pdf"
+                            with open(os.path.join(COMPROBANTES_DIR, local_pdf_name), "wb") as f:
+                                f.write(pdf_bytes)
+                                
+                            db.update_gasto(insert_id, pdf_filename=local_pdf_name)
+                            
+                            st.session_state['last_pdf_bytes'] = pdf_bytes
+                            st.session_state['last_pdf_name'] = local_pdf_name
+                            st.session_state['gasto_guardado_exito'] = True
+                            st.rerun()
+                        else:
+                            st.error(f"Error al guardar gasto: {insert_id}")
+            
+            st.markdown("---")
+            st.markdown("#### **Histórico Reciente de Gastos Capturados**")
+            df_g = db.get_gastos_df()
+            if not df_g.empty:
+                df_renamed = df_g.copy()
+                df_renamed['monto_neto_fmt'] = df_renamed['monto_neto'].map('${:,.2f}'.format)
+                
+                cols_order = ['id', 'fecha', 'concepto', 'monto_neto_fmt', 'proyecto_nombre', 'rubro', 'subrubro', 'deducible', 'estado_facturacion', 'metodo_pago', 'cuenta_nombre']
+                df_renamed = df_renamed[cols_order]
+                df_renamed.columns = ['ID', 'Fecha', 'Concepto', 'Monto Neto', 'Proyecto', 'Rubro', 'Subrubro', 'Deducible', 'Factura', 'Método Pago', 'Cuenta']
+                
+                def style_row(row):
+                    if row['Factura'] == 'Facturado':
+                        return ['background-color: #EBF5FB; color: #1B4F72'] * len(row)
+                    elif row['Factura'] == 'Pendiente':
+                        return ['background-color: #FEF9E7; color: #7D6608'] * len(row)
+                    return [''] * len(row)
+                
+                styler = df_renamed.style.apply(style_row, axis=1)
+                st.dataframe(styler, use_container_width=True, hide_index=True)
+                
+                df_with_img = df_g[df_g['comprobante_img_filename'].notna() & (df_g['comprobante_img_filename'] != '')]
+                if not df_with_img.empty:
+                    with st.expander("📷 Visualizar Comprobante de Transferencia / Fotos"):
+                        img_select_opts = dict(zip(df_with_img['id'].astype(str) + " - " + df_with_img['concepto'], df_with_img['comprobante_img_filename']))
+                        selected_img_key = st.selectbox("Seleccione Gasto para ver la foto:", list(img_select_opts.keys()))
+                        selected_img_file = img_select_opts[selected_img_key]
+                        img_path = os.path.join(COMPROBANTES_DIR, selected_img_file)
+                        if os.path.exists(img_path):
+                            st.image(img_path, caption=f"Comprobante del Gasto: {selected_img_key}", use_container_width=True)
+            else:
+                st.info("No hay gastos registrados.")
+
+
+# ─── MÓDULO 1: GASTOS — CAPTURA & CARGA MASIVA ──────────────────────────────
+if menu.startswith("1."):
+    render_header("Gastos Operativos", "Capture gastos individuales o realice cargas masivas en Excel.")
+    
+    tab_captura, tab_masiva = st.tabs([
+        "💵 1.1 Captura Individual de Gasto", 
+        "📂 1.2 Carga Masiva (Excel)"
+    ])
+    
+    with tab_captura:
+        _render_captura_individual_gasto()
+        
+    with tab_masiva:
+        _render_carga_masiva_excel()
+
+# ─── MÓDULO 2: PROYECTOS — GESTIÓN & PARETO ─────────────────────────────────
+elif menu.startswith("2."):
+    render_header("Proyectos", "Administre proyectos, órdenes de compra (backorder) y evalúe la salud financiera y pareto de costos.")
+    
+    tab_proy_alta, tab_backorder, tab_estado, tab_pareto, tab_progreso = st.tabs([
+        "📁 2.1 Alta & Gestión de Proyectos",
+        "📝 2.2 Órdenes de Compra (Backorder)",
+        "📊 2.3 Estado General por Proyecto",
+        "📉 2.4 Pareto de Costos",
+        "📈 2.5 Progreso vs Presupuesto"
+    ])
+    
+    df_gastos = db.get_gastos_df()
+    df_proy = db.get_proyectos()
+    
+    with tab_proy_alta:
+        _render_gestion_proyectos()
+        
+    with tab_backorder:
+        _render_control_backorder()
+        
+    with tab_estado:
+        proy_dash.render_estado_proyectos(df_proy, df_gastos)
+        
+    with tab_pareto:
+        if df_proy.empty:
+            st.info("No hay proyectos registrados para analizar.")
+        else:
+            proy_options = {"Todos": "Todos"}
+            proy_options.update(dict(zip(df_proy['nombre'], df_proy['id'])))
+            
+            selected_proj_name = st.selectbox("Seleccione Proyecto para el Pareto", list(proy_options.keys()))
+            selected_proj_id = proy_options[selected_proj_name]
+            
+            proy_dash.render_pareto_proyecto(df_gastos, selected_proj_id, selected_proj_name)
+            
+    with tab_progreso:
+        proy_dash.render_progreso_presupuesto(df_proy, df_gastos)
+
 
 # ─── MÓDULO 3: FLUJO DE CAJA PROYECTADO ──────────────────────────────────────
 elif menu.startswith("3."):
@@ -1023,46 +910,15 @@ elif menu.startswith("5."):
             df_cash = df_gastos[df_gastos['metodo_pago'] == 'Efectivo']
             render_export_section(df_cash, "movimientos_efectivo")
 
-# ─── MÓDULO 6: PROYECTOS — ESTADO & PARETO ───────────────────────────────────
+# ─── MÓDULO 6: INDUSTRIA 4.0 ─────────────────────────────────────────────────
 elif menu.startswith("6."):
-    render_header("Proyectos: Estado & Pareto de Costos", "Evalúe la salud financiera de sus proyectos y controle los conceptos de mayor costo.")
-    
-    df_gastos = db.get_gastos_df()
-    df_proy = db.get_proyectos()
-    
-    tab_est, tab_pareto, tab_prog = st.tabs([
-        "📊 6.1 Estado General por Proyecto",
-        "📉 6.2 Pareto de Costos",
-        "📈 6.3 Progreso vs Presupuesto"
-    ])
-    
-    with tab_est:
-        proy_dash.render_estado_proyectos(df_proy, df_gastos)
-        
-    with tab_pareto:
-        if df_proy.empty:
-            st.info("No hay proyectos registrados para analizar.")
-        else:
-            proy_options = {"Todos": "Todos"}
-            proy_options.update(dict(zip(df_proy['nombre'], df_proy['id'])))
-            
-            selected_proj_name = st.selectbox("Seleccione Proyecto para el Pareto", list(proy_options.keys()))
-            selected_proj_id = proy_options[selected_proj_name]
-            
-            proy_dash.render_pareto_proyecto(df_gastos, selected_proj_id, selected_proj_name)
-            
-    with tab_prog:
-        proy_dash.render_progreso_presupuesto(df_proy, df_gastos)
-
-# ─── MÓDULO 7: INDUSTRIA 4.0 ─────────────────────────────────────────────────
-elif menu.startswith("7."):
     i40.render_industria40()
 
-# ─── MÓDULO 8: MANUAL DE OPERACIÓN ───────────────────────────────────────────
-elif menu.startswith("8."):
+# ─── MÓDULO 7: MANUAL DE OPERACIÓN ───────────────────────────────────────────
+elif menu.startswith("7."):
     man.render_manual()
 
-# ─── MÓDULO 9: MANTENIMIENTO DEL SISTEMA ─────────────────────────────────────
-elif menu.startswith("9."):
+# ─── MÓDULO 8: MANTENIMIENTO DEL SISTEMA ─────────────────────────────────────
+elif menu.startswith("8."):
     auth.requiere_admin()
     maint.render_mantenimiento()
