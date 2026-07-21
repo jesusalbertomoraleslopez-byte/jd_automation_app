@@ -7,13 +7,32 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
 
+from PIL import Image
+
+# Cargar ícono oficial de J&D
+FAVICON_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'brand', 'favicon_512.png')
+favicon_img = Image.open(FAVICON_PATH) if os.path.exists(FAVICON_PATH) else "📊"
+
 # Configuración de página (Debe ser el primer comando de Streamlit)
 st.set_page_config(
     page_title="J&D Automation Industries - Control Financiero",
-    page_icon="📊",
+    page_icon=favicon_img,
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# Inyectar meta tags HTML para ícono de accesos directos, marcadores y favoritos
+if os.path.exists(FAVICON_PATH):
+    import base64
+    with open(FAVICON_PATH, "rb") as f:
+        fav_b64 = base64.b64encode(f.read()).decode("utf-8")
+    st.markdown(f"""
+    <head>
+        <link rel="icon" type="image/png" href="data:image/png;base64,{fav_b64}">
+        <link rel="shortcut icon" type="image/png" href="data:image/png;base64,{fav_b64}">
+        <link rel="apple-touch-icon" href="data:image/png;base64,{fav_b64}">
+    </head>
+    """, unsafe_allow_html=True)
 
 # Estilo CSS Personalizado para la Identidad Visual de J&D
 st.markdown("""
