@@ -181,42 +181,78 @@ def seed_demo_data(conn):
         ]
         cursor.executemany("INSERT INTO cuentas (nombre, tipo) VALUES (?, ?)", cuentas)
 
-    # Clasificaciones (catálogo base)
-    cursor.execute("SELECT COUNT(*) FROM clasificaciones")
-    if cursor.fetchone()[0] == 0:
-        clasifs = [
-            ("Mano de Obra y Personal", "Carga Social y Obligaciones Fiscales", "Pago IMSS/INFONAVIT"),
-            ("Mano de Obra y Personal", "Carga Social y Obligaciones Fiscales", "Retención ISR Salarios"),
-            ("Mano de Obra y Personal", "Carga Social y Obligaciones Fiscales", "Impuesto Sobre Nómina (ISN)"),
-            ("Mano de Obra y Personal", "Carga Social y Obligaciones Fiscales", "Aportaciones a la AFORE"),
-            ("Mano de Obra y Personal", "Nómina Interna Operativa", "Sueldo Base Técnicos"),
-            ("Mano de Obra y Personal", "Nómina Interna Operativa", "Horas Extra"),
-            ("Mano de Obra y Personal", "Nómina Interna Operativa", "Primas Vacacionales y Aguinaldos"),
-            ("Mano de Obra y Personal", "Nómina Interna Operativa", "Bonos de Proyecto"),
-            ("Mano de Obra y Personal", "Subcontrataciones y Destajos (Con IVA)", "Ingenieros Externos (PLC/CAD)"),
-            ("Mano de Obra y Personal", "Subcontrataciones y Destajos (Con IVA)", "Contratistas de Montaje"),
-            ("Mano de Obra y Personal", "Subcontrataciones y Destajos (Con IVA)", "Maquila/Torneado Externo"),
-            ("Mano de Obra y Personal", "Subcontrataciones y Destajos (Con IVA)", "Agencias REPSE"),
-            ("Mano de Obra y Personal", "Sueldos Administrativos y Supervisión", "Nómina Project Managers"),
-            ("Mano de Obra y Personal", "Sueldos Administrativos y Supervisión", "Sueldos Dirección y Administración"),
-            ("Materiales y Suministros", "Componentes del Proyecto", "Relevadores y Cableado"),
-            ("Materiales y Suministros", "Componentes del Proyecto", "Pistones y Neumática"),
-            ("Materiales y Suministros", "Componentes del Proyecto", "Gabinete Eléctrico"),
-            ("Materiales y Suministros", "Consumibles de Taller", "Soldadura y Tornillería"),
-            ("Materiales y Suministros", "Consumibles de Taller", "Cintas y EPP Menor"),
-            ("Herramientas y Maquinaria", "Equipo Mayor y Renta", "Renta de Grúa Industrial"),
-            ("Herramientas y Maquinaria", "Equipo Mayor y Renta", "Renta de Andamios y Plataformas"),
-            ("Herramientas y Maquinaria", "Equipo Mayor y Renta", "Compra de Equipos CNC/Grandes"),
-            ("Herramientas y Maquinaria", "Herramienta Menor", "Pinzas, Destornilladores, Brocas"),
-            ("Herramientas y Maquinaria", "Herramienta Menor", "Multímetros y Calibradores"),
-            ("Gastos Indirectos y Operación", "Logística y Viáticos de Campo", "Gasolina y Casetas"),
-            ("Gastos Indirectos y Operación", "Logística y Viáticos de Campo", "Hoteles y Viáticos de Viaje"),
-            ("Gastos Indirectos y Operación", "Logística y Viáticos de Campo", "Fletes y Envíos"),
-            ("Gastos Indirectos y Operación", "Servicios y Oficina", "Renta de Oficina / Taller"),
-            ("Gastos Indirectos y Operación", "Servicios y Oficina", "Luz, Agua e Internet"),
-            ("Gastos Indirectos y Operación", "Servicios y Oficina", "Papelería y Artículos de Oficina"),
-        ]
-        cursor.executemany("INSERT OR IGNORE INTO clasificaciones (rubro, subrubro, concepto) VALUES (?, ?, ?)", clasifs)
+    # Clasificaciones oficiales de J&D Industries (catálogo base)
+    clasifs = [
+        # 1. FIJOS
+        ("FIJOS", "Servicios Taller", "AGUA TALLER"),
+        ("FIJOS", "Servicios Taller", "CFE TALLER"),
+        ("FIJOS", "Servicios Taller", "INTERNET"),
+        ("FIJOS", "Arrendamiento", "RENTA DE CASA"),
+        ("FIJOS", "Arrendamiento", "Renta Taller y Oficina"),
+        ("FIJOS", "Seguros y Vehículos", "SEGURO CAMIONETA"),
+        ("FIJOS", "Gastos Fijos Generales", "Gastos Fijos Operativos"),
+
+        # 2. CONSUMIBLES
+        ("CONSUMIBLES", "Insumos de Taller", "Consumibles de Taller"),
+        ("CONSUMIBLES", "Insumos de Taller", "Soldadura y Tornillería"),
+        ("CONSUMIBLES", "Insumos de Taller", "Cintas y EPP Menor"),
+
+        # 3. PROYECTOS (Subrubros y Conceptos oficiales J&D)
+        ("PROYECTOS", "MATERIALES", "Materiales y Componentes Directos"),
+        ("PROYECTOS", "MANO DE OBRA", "Mano de Obra Operativa y Montaje"),
+        ("PROYECTOS", "COMBUSTIBLES", "Gasolina y Diésel de Proyecto"),
+        ("PROYECTOS", "SUBCONTRATOS", "Subcontratos y Maquila Externa"),
+        ("PROYECTOS", "MAQUINARIA", "Renta y Operación de Maquinaria"),
+        ("PROYECTOS", "HERRAMIENTA", "Herramienta de Campo y Proyecto"),
+        ("PROYECTOS", "GASTOS", "HOSPEDAJE"),
+        ("PROYECTOS", "GASTOS", "GASOLINAS"),
+        ("PROYECTOS", "GASTOS", "EPP"),
+        ("PROYECTOS", "GASTOS", "CAPACITACIONES"),
+        ("PROYECTOS", "GASTOS", "CERTIFICACIONES DC3"),
+        ("PROYECTOS", "GASTOS", "CASETAS"),
+
+        # 4. COMBUSTIBLES
+        ("COMBUSTIBLES", "Combustible Operativo", "Gasolina Flotilla Taller"),
+        ("COMBUSTIBLES", "Combustible Operativo", "Diésel Equipos y Transporte"),
+
+        # 5. MTTO Y MEJORA
+        ("MTTO Y MEJORA", "Mantenimiento Vehicular", "Mantenimiento de Camionetas y Vehículos"),
+        ("MTTO Y MEJORA", "Mantenimiento Taller", "Reparación y Mantenimiento de Taller"),
+        ("MTTO Y MEJORA", "Mejoras de Infraestructura", "Adecuaciones y Mejoras de Taller"),
+
+        # 6. INVERSIONES
+        ("INVERSIONES", "Maquinaria y Equipo Mayor", "Equipamiento CNC y Maquinaria"),
+        ("INVERSIONES", "Vehículos e Infraestructura", "Adquisición de Vehículos"),
+        ("INVERSIONES", "Tecnología", "Equipo de Cómputo y Software"),
+
+        # 7. GASTOS FINANCIEROS
+        ("GASTOS FINANCIEROS", "Servicios Bancarios", "Comisiones Bancarias"),
+        ("GASTOS FINANCIEROS", "Financiamiento", "Intereses y Costos Financieros"),
+
+        # 8. NOMINA (Impuestos, Carga Social y Sueldos J&D)
+        ("NOMINA", "Impuestos y Carga Social", "IMPUESTOS SAT IVA-ISR"),
+        ("NOMINA", "Impuestos y Carga Social", "IMPUESTO ISN"),
+        ("NOMINA", "Impuestos y Carga Social", "IMSS"),
+        ("NOMINA", "Impuestos y Carga Social", "IMSS + RCV"),
+        ("NOMINA", "Impuestos y Carga Social", "IMSS-INFONAVIT"),
+        ("NOMINA", "Impuestos y Carga Social", "INFONAVIT"),
+        ("NOMINA", "Sueldos y Salarios", "Sueldo Base Técnicos e Ingenieros"),
+        ("NOMINA", "Sueldos y Salarios", "Sueldos Administrativos y Dirección"),
+        ("NOMINA", "Sueldos y Salarios", "Aguinaldos, Primas y Bonos"),
+
+        # 9. HERRAMIENTA
+        ("HERRAMIENTA", "Herramental Taller y Campo", "Herramienta Menor"),
+        ("HERRAMIENTA", "Herramental Taller y Campo", "Equipos de Medición y Calibración"),
+
+        # 10. FACTURACION
+        ("FACTURACION", "Gastos Facturados", "Facturación Proveedores Directos"),
+        ("FACTURACION", "Gastos Facturados", "Compras Facturadas General"),
+
+        # 11. FACTURACION POR PAGAR
+        ("FACTURACION POR PAGAR", "Cuentas por Pagar", "Facturas Pendientes de Pago"),
+        ("FACTURACION POR PAGAR", "Cuentas por Pagar", "Proveedores por Liquidar"),
+    ]
+    cursor.executemany("INSERT OR IGNORE INTO clasificaciones (rubro, subrubro, concepto) VALUES (?, ?, ?)", clasifs)
 
     # Gastos demo
     cursor.execute("SELECT COUNT(*) FROM gastos")

@@ -107,14 +107,25 @@ def calculate_cashflow_matrix(semanas, saldo_inicial_caja):
                         df_status.loc[proj_row, lbl] = 'Pendiente'
 
         # ─── 2. Procesar Egresos ───
-        # Mapeo de categorías
+        # Mapeo de categorías con Rubros Oficiales J&D
         cat_map = {
+            'NOMINA': "👥 Nómina Operativa J&D",
             'Nómina': "👥 Nómina Operativa J&D",
+            'FIJOS': "⚡ Gastos Fijos & Servicios",
+            'Servicios': "⚡ Gastos Fijos & Servicios",
+            'CONSUMIBLES': "🛠️ Consumibles de Taller",
+            'PROYECTOS': "💼 Gastos de Proyectos",
+            'COMBUSTIBLES': "⛽ Combustibles",
+            'Gasolina': "⛽ Combustibles",
+            'MTTO Y MEJORA': "🔧 Mantenimiento & Mejora",
+            'INVERSIONES': "🏛️ Inversiones & Activos",
+            'GASTOS FINANCIEROS': "💳 Gastos Financieros",
+            'HERRAMIENTA': "🧰 Herramienta",
+            'FACTURACION': "📑 Facturación Directa",
+            'FACTURACION POR PAGAR': "⏳ Facturación por Pagar",
             'SAT': "🏛️ SAT - Impuestos",
             'IMSS': "🏥 IMSS / Infonavit",
             'Infonavit': "🏥 IMSS / Infonavit",
-            'Servicios': "⚡ Servicios & Operación",
-            'Gasolina': "⛽ Combustibles (Gasolina)",
             'Otros': "📦 Otros Egresos"
         }
 
@@ -468,7 +479,10 @@ def render_flujo_caja_modulo():
                     concepto_g = st.text_input("Concepto / Servicio", placeholder="Ej. Renta Oficina Monterrey")
                     monto_g = st.number_input("Monto Estimado", min_value=0.01, step=100.0, format="%.2f")
                     fecha_g = st.date_input("Fecha Límite / Compromiso", datetime.date.today())
-                    categoria_g = st.selectbox("Rubro", ["Nómina", "Servicios", "SAT", "IMSS", "Infonavit", "Gasolina", "Otros"])
+                    rubros_opts = db.get_rubros()
+                    if not rubros_opts:
+                        rubros_opts = ["FIJOS", "CONSUMIBLES", "PROYECTOS", "COMBUSTIBLES", "MTTO Y MEJORA", "INVERSIONES", "GASTOS FINANCIEROS", "NOMINA", "HERRAMIENTA", "FACTURACION", "FACTURACION POR PAGAR"]
+                    categoria_g = st.selectbox("Rubro Principal", rubros_opts)
                     recurrente_g = st.checkbox("Gasto mensual recurrente", value=True)
                     frecuencia_g = st.selectbox("Frecuencia de Pago", ["Mensual", "Bimestral", "Única"])
                     
