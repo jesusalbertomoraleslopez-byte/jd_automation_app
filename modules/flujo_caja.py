@@ -412,6 +412,33 @@ def render_flujo_caja_modulo():
         else:
             st.info("No hay gastos programados pendientes por ejecutar.")
 
+        # ─── TABLA INFERIOR DE MOVIMIENTOS Y GASTOS EJECUTADOS ───
+        st.markdown("---")
+        st.markdown("#### **📋 Historial de Movimientos y Transacciones Reales**")
+        st.caption("A continuación se muestra el registro completo de los movimientos ejecutados y guardados en el sistema.")
+        
+        df_movs = db.get_gastos_df()
+        if not df_movs.empty:
+            df_movs_disp = df_movs[[
+                'id', 'fecha', 'concepto', 'monto_neto', 'rubro', 
+                'metodo_pago', 'cuenta_nombre', 'deducible', 'estado_facturacion'
+            ]].copy()
+            
+            df_movs_disp['monto_neto'] = df_movs_disp['monto_neto'].apply(lambda v: f"${v:,.2f}")
+            df_movs_disp.columns = [
+                'ID', 'Fecha Pago', 'Concepto Real', 'Monto Neto ($)', 
+                'Rubro / Categoría', 'Método Pago', 'Cuenta / Banco Cargo', 'Deducible', 'Estatus Facturación'
+            ]
+            
+            st.dataframe(
+                df_movs_disp,
+                use_container_width=True,
+                hide_index=True,
+                height=350
+            )
+        else:
+            st.info("Aún no hay movimientos ejecutados registrados.")
+
     # ─── TAB 3.3: EXPORTAR EXCEL DE FLUJO ───
     with tab_export:
         st.markdown("### **Descargar Reportes y Plantilla de Envío**")
