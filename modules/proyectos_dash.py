@@ -8,8 +8,135 @@ import pandas as pd
 
 BRAND_COLORS = ['#434E62', '#FE8C29', '#8C96A6', '#FFA654', '#B4BCC6', '#FFC38C', '#2C3E50', '#E67E22']
 
+def create_donut_gauge(title, percent, color='#FE8C29', is_global=False):
+    """
+    Crea una gráfica de dona tipo 'reloj' de avance con porcentaje al centro.
+    """
+    pct = max(0.0, min(100.0, float(percent)))
+    rem = 100.0 - pct
+    
+    fig = go.Figure(data=[go.Pie(
+        labels=['Ejecutado', 'Restante'],
+        values=[pct if pct > 0 else 0.0001, rem],
+        hole=0.72 if not is_global else 0.68,
+        sort=False,
+        direction='clockwise',
+        textinfo='none',
+        hoverinfo='label+percent',
+        marker=dict(
+            colors=[color, '#EFEFEF'],
+            line=dict(color='#FFFFFF', width=2)
+        )
+    )])
+    
+    fig.update_layout(
+        showlegend=False,
+        margin=dict(t=35, b=10, l=5, r=5),
+        height=190 if not is_global else 225,
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        annotations=[
+            dict(
+                text=f"<b>{title}</b>",
+                x=0.5, y=1.28,
+                showarrow=False,
+                font=dict(size=12 if not is_global else 14, color='#434E62', family='Montserrat, sans-serif')
+            ),
+            dict(
+                text=f"<b>{pct:.1f}%</b>",
+                x=0.5, y=0.5,
+                showarrow=False,
+                font=dict(size=18 if not is_global else 24, color=color if not is_global else '#DC2626', family='Montserrat, sans-serif')
+            )
+        ]
+    )
+    return fig
+
+def render_relojes_avance_proceso(df_proy: pd.DataFrame, df_gastos: pd.DataFrame, key_suffix=""):
+    """
+    Renderiza la fila de Relojes de Avance % en Costo por Rubro para el proyecto seleccionado.
+    Rubros: Material, Mano de Obra, Supervisión, Gasto, Maquinaria, Herramienta + AVANCE GLOBAL
+    """
+    st.markdown("#### 🎯 **AVANCE POR RUBRO / PROCESO (RELOJES EN COSTO %)**")
+    
+    if df_proy.empty:
+        st.info("No hay proyectos disponibles.")
+        return
+        
+    proy_opts = dict(zip(df_proy['nombre'].tolist(), df_proy['id'].tolist()))
+    sel_proy_name = st.selectbox(
+        "Seleccione el Proyecto a Analizar", 
+        list(proy_opts.keys()), 
+        key=f"sel_reloj_proy_{key_suffix}"
+    )
+    sel_proy_id = proy_opts[sel_proy_name]
+    proy_row = df_proy[df_proy['id'] == sel_proy_id].iloc[0]
+    ingreso = float(proy_row['monto_ingreso'])
+    
+    df_p_gastos = pd.DataFrame()
+    if not df_gastos.empty and 'proyecto_id' in df_gastos.columns:
+        df_p_gastos = df_gastos[df_gastos['proyecto_id'] == sel_proy_id]
+        
+    gasto_cat = {
+        'Material': 0.0,
+        'Mano de Obra': 0.0,
+        'Supervisión': 0.0,
+        'Gasto': 0.0,
+        'Maquinaria': 0.0,
+        'Herramienta': 0.0
+    }
+    
+    if not df_p_gastos.empty:
+        for _, g in df_p_gastos.iterrows():
+            sub = str(g.get('subrubro', '')).upper()
+            rub = str(g.get('rubro', '')).upper()
+            conc = str(g.get('concepto_detallado', '')).upper()
+            monto = float(g.get('monto_neto', 0.0))
+            
+            if 'MATERIAL' in sub or 'MATERIAL' in rub or 'MATERIAL' in conc:
+                gasto_cat['Material'] += monto
+            elif 'MANO DE OBRA' in sub or 'MANO' in sub or 'NOMINA' in rub or 'SUELDO' in conc:
+                gasto_cat['Mano de Obra'] += monto
+            elif 'SUBCONTRAT' in sub or 'SUPERVIS' in sub or 'SUBCONTRAT' in rub:
+                gasto_cat['Supervisión'] += monto
+            elif 'MAQUINARIA' in sub or 'EQUIPO MAYOR' in sub:
+                gasto_cat['Maquinaria'] += monto
+            elif 'HERRAMIENTA' in sub or 'HERRAMIENTA' in rub:
+                gasto_cat['Herramienta'] += monto
+            else:
+                gasto_cat['Gasto'] += monto
+
+    total_gasto_real = sum(gasto_cat.values())
+    pct_base = ingreso if ingreso > 0 else (total_gasto_real if total_gasto_real > 0 else 1.0)
+    
+    pcts = {
+        'Material': (gasto_cat['Material'] / pct_base) * 100,
+        'Mano de Obra': (gasto_cat['Mano de Obra'] / pct_base) * 100,
+        'Supervisión': (gasto_cat['Supervisión'] / pct_base) * 100,
+        'Gasto': (gasto_cat['Gasto'] / pct_base) * 100,
+        'Maquinaria': (gasto_cat['Maquinaria'] / pct_base) * 100,
+        'Herramienta': (gasto_cat['Herramienta'] / pct_base) * 100,
+        'AVANCE GLOBAL': (total_gasto_real / pct_base) * 100
+    }
+    
+    relojes_config = [
+        ("Material", pcts['Material'], "#F4C430", False),
+        ("Mano de Obra", pcts['Mano de Obra'], "#00A3E0", False),
+        ("Supervisión", pcts['Supervisión'], "#FF6B4A", False),
+        ("Gasto", pcts['Gasto'], "#E60049", False),
+        ("Maquinaria", pcts['Maquinaria'], "#B38B6D", False),
+        ("Herramienta", pcts['Herramienta'], "#2EE659", False),
+        ("AVANCE GLOBAL", pcts['AVANCE GLOBAL'], "#DC2626", True)
+    ]
+    
+    cols = st.columns(7)
+    for idx, (title, pct, color, is_glob) in enumerate(relojes_config):
+        with cols[idx]:
+            fig = create_donut_gauge(title, pct, color=color, is_global=is_glob)
+            st.plotly_chart(fig, use_container_width=True, key=f"reloj_{idx}_{sel_proy_id}_{key_suffix}")
+
 def render_estado_proyectos(df_proy: pd.DataFrame, df_gastos: pd.DataFrame):
-    """Renderiza el estado financiero de cada proyecto con semáforos y KPIs."""
+    """Renderiza el estado financiero de cada proyecto con semáforos, relojes y KPIs."""
     st.markdown("### 📊 Estado General de Proyectos")
 
     if df_proy.empty:
@@ -45,15 +172,20 @@ def render_estado_proyectos(df_proy: pd.DataFrame, df_gastos: pd.DataFrame):
             c4.metric("Estado", sem_txt)
 
             # Barra de progreso
-            st.markdown(f"**Ejecución presupuestal: {pct:.1f}%**")
+            st.markdown(f"**Ejecución presupuestal total: {pct:.1f}%**")
             progress_val = min(pct / 100, 1.0)
             bar_color = sem_color
             st.markdown(f"""
-            <div style="background:#EDEDED; border-radius:8px; height:16px; overflow:hidden;">
+            <div style="background:#EDEDED; border-radius:8px; height:16px; overflow:hidden; margin-bottom: 15px;">
               <div style="width:{progress_val*100:.1f}%; background:{bar_color}; height:16px; border-radius:8px;
                           transition:width 0.5s;"></div>
             </div>
             """, unsafe_allow_html=True)
+            
+            # Relojes de avance para este proyecto
+            df_proy_single = df_proy[df_proy['id'] == proy['id']]
+            render_relojes_avance_proceso(df_proy_single, df_gastos, key_suffix=f"single_{proy['id']}")
+            
             st.markdown(f"*{proy.get('descripcion','Sin descripción')}*")
 
 
@@ -69,7 +201,6 @@ def render_pareto_proyecto(df_gastos: pd.DataFrame, proyecto_id=None, proyecto_n
         st.info("No hay gastos registrados para este proyecto.")
         return
 
-    # Agrupar por el nivel más específico disponible
     label_col = 'concepto_detallado'
     if df[label_col].replace('', pd.NA).dropna().empty:
         label_col = 'subrubro'
@@ -87,7 +218,6 @@ def render_pareto_proyecto(df_gastos: pd.DataFrame, proyecto_id=None, proyecto_n
         df_grouped = df_grouped.sort_values('monto_neto', ascending=False).reset_index(drop=True)
         label_col = 'concepto'
 
-    # Calcular acumulado
     total = df_grouped['monto_neto'].sum()
     df_grouped['pct'] = df_grouped['monto_neto'] / total * 100
     df_grouped['acumulado'] = df_grouped['pct'].cumsum()
@@ -124,7 +254,6 @@ def render_pareto_proyecto(df_gastos: pd.DataFrame, proyecto_id=None, proyecto_n
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    # Tabla resumen
     st.markdown("**Detalle de Costos:**")
     df_show = df_grouped[[label_col, 'monto_neto', 'pct', 'acumulado']].copy()
     df_show['monto_neto'] = df_show['monto_neto'].map('${:,.2f}'.format)
@@ -135,8 +264,12 @@ def render_pareto_proyecto(df_gastos: pd.DataFrame, proyecto_id=None, proyecto_n
 
 
 def render_progreso_presupuesto(df_proy: pd.DataFrame, df_gastos: pd.DataFrame):
-    """Gráfico de barras horizontales de presupuesto vs gasto por proyecto."""
+    """Gráfico de barras horizontales y Relojes de Avance por proyecto."""
     st.markdown("### 📊 Presupuesto vs Gasto por Proyecto")
+
+    if not df_proy.empty:
+        render_relojes_avance_proceso(df_proy, df_gastos, key_suffix="progreso_tab")
+        st.markdown("---")
 
     gasto_map = {}
     if not df_gastos.empty and 'proyecto_id' in df_gastos.columns:
