@@ -3,8 +3,9 @@ import datetime
 import pandas as pd
 from openpyxl import Workbook
 from openpyxl.worksheet.datavalidation import DataValidation
-from openpyxl.styles import Font, PatternFill, Alignment
-from database import get_proyectos, get_cuentas, add_gasto, get_clasificaciones_dict
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.utils import get_column_letter
+from database import get_proyectos, get_cuentas, add_gasto, get_clasificaciones_dict, get_clasificaciones_df, add_clasificacion
 
 class DynamicClasificaciones(dict):
     def keys(self):
@@ -554,3 +555,181 @@ def export_cashflow_matrix_excel(semanas, row_names, df_values, df_status, saldo
     output = io.BytesIO()
     wb.save(output)
     return output.getvalue()
+
+
+# ─────────────────────────────────────────────────────────
+# HERRAMIENTAS DE EXCEL PARA CATÁLOGO DE CLASIFICACIONES
+# ─────────────────────────────────────────────────────────
+
+def export_clasificaciones_excel():
+    """
+    Exporta el catálogo actual de clasificaciones de la BD a un archivo Excel
+    formateado profesionalmente con estilos corporativos J&D.
+    """
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Catálogo Clasificaciones"
+    ws.views.sheetView[0].showGridLines = True
+
+    fill_header = PatternFill(start_color="434E62", end_color="434E62", fill_type="solid")
+    font_header = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
+    font_data = Font(name="Calibri", size=10)
+    align_center = Alignment(horizontal="center", vertical="center")
+    align_left = Alignment(horizontal="left", vertical="center")
+    fill_zebra = PatternFill(start_color="F8FAFC", end_color="F8FAFC", fill_type="solid")
+    thin_border = Border(
+        left=Side(style='thin', color='CBD5E1'),
+        right=Side(style='thin', color='CBD5E1'),
+        top=Side(style='thin', color='CBD5E1'),
+        bottom=Side(style='thin', color='CBD5E1')
+    )
+
+    headers = ["ID", "Rubro Principal", "Subrubro", "Concepto Detallado"]
+    ws.append(headers)
+    ws.row_dimensions[1].height = 26
+
+    for col_idx in range(1, len(headers) + 1):
+        cell = ws.cell(row=1, column=col_idx)
+        cell.fill = fill_header
+        cell.font = font_header
+        cell.alignment = align_center
+        cell.border = thin_border
+
+    df_c = get_clasificaciones_df()
+    if not df_c.empty:
+        for r_idx, row in enumerate(df_c.itertuples(), start=2):
+            ws.append([row.id, row.rubro, row.subrubro, row.concepto])
+            ws.row_dimensions[r_idx].height = 20
+            
+            fill_row = fill_zebra if r_idx % 2 == 0 else PatternFill(fill_type=None)
+            for c_idx in range(1, 5):
+                cell = ws.cell(row=r_idx, column=c_idx)
+                cell.font = font_data
+                cell.border = thin_border
+                if c_idx == 1:
+                    cell.alignment = align_center
+                else:
+                    cell.alignment = align_left
+                if r_idx % 2 == 0:
+                    cell.fill = fill_row
+
+    for col in ws.columns:
+        max_len = max(len(str(cell.value or '')) for cell in col)
+        col_letter = get_column_letter(col[0].column)
+        ws.column_dimensions[col_letter].width = max(max_len + 4, 15)
+
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    return output.getvalue()
+
+
+def generate_clasificaciones_template():
+    """
+    Genera una plantilla vacía con formato corporativo J&D y filas de ejemplo
+    para que los usuarios agreguen clasificaciones en lote.
+    """
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Cargar Clasificaciones"
+    ws.views.sheetView[0].showGridLines = True
+
+    fill_header = PatternFill(start_color="434E62", end_color="434E62", fill_type="solid")
+    font_header = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
+    font_data = Font(name="Calibri", size=10)
+    align_center = Alignment(horizontal="center", vertical="center")
+    align_left = Alignment(horizontal="left", vertical="center")
+    thin_border = Border(
+        left=Side(style='thin', color='CBD5E1'),
+        right=Side(style='thin', color='CBD5E1'),
+        top=Side(style='thin', color='CBD5E1'),
+        bottom=Side(style='thin', color='CBD5E1')
+    )
+
+    headers = ["Rubro Principal", "Subrubro", "Concepto Detallado"]
+    ws.append(headers)
+    ws.row_dimensions[1].height = 26
+
+    for col_idx in range(1, 4):
+        cell = ws.cell(row=1, column=col_idx)
+        cell.fill = fill_header
+        cell.font = font_header
+        cell.alignment = align_center
+        cell.border = thin_border
+
+    ejemplos = [
+        ("PROYECTOS", "GASTOS", "COMPRA DE HERRAMIENTAS MENORES"),
+        ("FIJOS", "Servicios Taller", "MANTENIMIENTO DE AIRE ACONDICIONADO"),
+        ("NOMINA", "Sueldos y Salarios", "BONO DE PRODUCTIVIDAD PROYECTO"),
+    ]
+
+    for r_idx, (r, s, c) in enumerate(ejemplos, start=2):
+        ws.append([r, s, c])
+        ws.row_dimensions[r_idx].height = 20
+        for c_idx in range(1, 4):
+            cell = ws.cell(row=r_idx, column=c_idx)
+            cell.font = font_data
+            cell.alignment = align_left
+            cell.border = thin_border
+
+    ws.column_dimensions['A'].width = 25
+    ws.column_dimensions['B'].width = 25
+    ws.column_dimensions['C'].width = 40
+
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    return output.getvalue()
+
+
+def import_clasificaciones_excel(file_bytes):
+    """
+    Lee un archivo Excel con columnas 'Rubro Principal', 'Subrubro', 'Concepto Detallado'
+    e inserta cada clasificación en la BD.
+    Retorna (added_count, dup_count, errors)
+    """
+    try:
+        df = pd.read_excel(io.BytesIO(file_bytes))
+    except Exception as e:
+        return 0, 0, [f"Error al leer el archivo Excel: {str(e)}"]
+
+    col_map = {}
+    for col in df.columns:
+        c_clean = str(col).strip().upper()
+        if 'SUB' in c_clean:
+            col_map[col] = 'subrubro'
+        elif 'RUBRO' in c_clean:
+            col_map[col] = 'rubro'
+        elif 'CONCEPTO' in c_clean or 'DETALLE' in c_clean:
+            col_map[col] = 'concepto'
+
+    df.rename(columns=col_map, inplace=True)
+
+    required = ['rubro', 'subrubro', 'concepto']
+    missing = [r for r in required if r not in df.columns]
+    if missing:
+        return 0, 0, [f"Columnas faltantes en el archivo Excel: {', '.join(missing)}. El archivo debe contener las columnas 'Rubro Principal', 'Subrubro' y 'Concepto Detallado'."]
+
+    added_count = 0
+    dup_count = 0
+    errors = []
+
+    for idx, row in df.iterrows():
+        rubro = str(row.get('rubro', '')).strip()
+        subrubro = str(row.get('subrubro', '')).strip()
+        concepto = str(row.get('concepto', '')).strip()
+
+        if not rubro or rubro.lower() == 'nan' or not subrubro or subrubro.lower() == 'nan' or not concepto or concepto.lower() == 'nan':
+            continue
+
+        success, msg = add_clasificacion(rubro, subrubro, concepto)
+        if success:
+            added_count += 1
+        else:
+            if "existe" in msg.lower() or "unique" in msg.lower():
+                dup_count += 1
+            else:
+                errors.append(f"Fila {idx+2}: {msg}")
+
+    return added_count, dup_count, errors
+
