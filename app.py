@@ -122,17 +122,70 @@ st.markdown("""
         font-weight: 500 !important;
     }
     
-    /* Aplicar tipografía Nexa/Montserrat corporativa */
-    html, body, .stWidget, .stMarkdown, p, li, label, input, button, select {
+    /* Aplicar tipografía Montserrat corporativa */
+    html, body, .stWidget, .stMarkdown, p, li, label, input, button {
         font-family: 'Montserrat', 'Inter', sans-serif !important;
     }
 
-    /* Prevenir que la tipografía de íconos de Streamlit (Expander, Sidebar) se corrompa en texto */
-    [data-testid="stExpanderToggleIcon"], 
+    /* ─── ESTILOS CORPORATIVOS PARA SELECTBOX Y DESPLEGABLES (DROPDOWNS) ─── */
+    [data-testid="stSelectbox"], 
+    [data-testid="stMultiSelect"] {
+        font-family: 'Montserrat', sans-serif !important;
+    }
+
+    /* Contenedor desplegable BaseWeb */
+    [data-baseweb="select"] > div {
+        background-color: #FFFFFF !important;
+        border: 1px solid #CBD5E1 !important;
+        border-radius: 6px !important;
+        color: #434E62 !important;
+        font-weight: 600 !important;
+        font-size: 14px !important;
+    }
+
+    [data-baseweb="select"] > div:hover {
+        border-color: #FE8C29 !important;
+    }
+
+    /* Proteger íconos y SVGs en desplegables y expanders de corrupción tipográfica */
+    [data-testid="stSelectbox"] svg,
+    [data-testid="stMultiSelect"] svg,
+    [data-baseweb="select"] svg,
+    [data-baseweb="icon"],
+    [data-testid="stExpanderToggleIcon"],
     [data-testid="stExpander"] summary *,
     [data-testid="stExpander"] summary span,
     [data-testid="stExpander"] svg {
         font-family: sans-serif !important;
+        display: inline-block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+
+    /* ─── ESTILOS CORPORATIVOS PARA ACCORDEONES Y EXPANDERS ─── */
+    [data-testid="stExpander"] {
+        background-color: #FFFFFF !important;
+        border: 1px solid #E2E8F0 !important;
+        border-radius: 8px !important;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.02) !important;
+        margin-bottom: 12px !important;
+        overflow: hidden !important;
+    }
+
+    [data-testid="stExpander"] summary {
+        background-color: #FAFAFA !important;
+        color: #434E62 !important;
+        font-family: 'Montserrat', sans-serif !important;
+        font-weight: 700 !important;
+        font-size: 14px !important;
+        padding: 12px 16px !important;
+        border-radius: 8px !important;
+        transition: background-color 0.2s ease, color 0.2s ease !important;
+    }
+
+    [data-testid="stExpander"] summary:hover {
+        background-color: #FFF8F3 !important;
+        color: #FE8C29 !important;
     }
 
     /* Fondo gris claro (#EDEDED) */
