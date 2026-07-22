@@ -7,6 +7,7 @@ import os
 import datetime
 import database as db
 import modules.excel_handler as excel_handler
+import modules.pdf_generator as pdf_generator
 
 # Directorio de comprobantes físicos
 COMPROBANTES_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'comprobantes')
@@ -206,50 +207,60 @@ def _render_gestion_clasificaciones():
         else:
             st.info("No hay clasificaciones registradas.")
 
-    # ─── HERRAMIENTAS DE EXCEL PARA CATÁLOGO ───
+    # ─── HERRAMIENTAS DE EXPORTACIÓN (PDF / EXCEL) Y CARGA MASIVA ───
     st.markdown("---")
-    st.markdown("### **📊 Herramientas de Excel para Catálogo de Clasificaciones**")
+    st.markdown("### **📊 Herramientas de Exportación (PDF / Excel) y Carga Masiva**")
     
-    col_ex1, col_ex2 = st.columns(2)
+    col_ex1, col_ex2, col_ex3 = st.columns(3)
     
     with col_ex1:
-        st.markdown("##### **1. Descargar Catálogo Actual**")
-        st.caption("Exporta la lista completa de clasificaciones activas en un archivo Excel con formato corporativo.")
+        st.markdown("##### **1. Reporte PDF (Hoja Membretada)**")
+        st.caption("Genere un informe impreso oficial en PDF con la hoja membretada institucional J&D.")
+        pdf_bytes = pdf_generator.generar_pdf_catalogo_clasificaciones()
+        st.download_button(
+            label="🖨️ Descargar PDF Membretado",
+            data=pdf_bytes,
+            file_name=f"Catalogo_Clasificaciones_JD_{datetime.date.today().strftime('%Y%m%d')}.pdf",
+            mime="application/pdf",
+            use_container_width=True
+        )
+
+    with col_ex2:
+        st.markdown("##### **2. Descargar Catálogo (Excel)**")
+        st.caption("Exporta la lista completa de clasificaciones activas en un archivo Excel formateado.")
         excel_bytes = excel_handler.export_clasificaciones_excel()
         st.download_button(
-            label="📥 Descargar Catálogo Actual (.xlsx)",
+            label="📥 Descargar Catálogo (.xlsx)",
             data=excel_bytes,
             file_name=f"Catalogo_Clasificaciones_JD_{datetime.date.today().strftime('%Y%m%d')}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=True
         )
         
-    with col_ex2:
-        st.markdown("##### **2. Carga Masiva desde Plantilla Excel**")
-        st.caption("Descargue la plantilla, complete sus nuevos Rubros/Subrubros/Conceptos e impórtelos masivamente.")
+    with col_ex3:
+        st.markdown("##### **3. Carga Masiva desde Excel**")
+        st.caption("Descargue la plantilla de muestra o suba un archivo Excel para cargar clasificaciones.")
         
-        c_tmpl, c_blank = st.columns([1, 1])
-        with c_tmpl:
-            tmpl_bytes = excel_handler.generate_clasificaciones_template()
-            st.download_button(
-                label="📄 Plantilla Excel de Ejemplo",
-                data=tmpl_bytes,
-                file_name="Plantilla_Importar_Clasificaciones_JD.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True
-            )
-            
-        uploaded_clas_file = st.file_uploader("Subir Archivo Excel con Clasificaciones", type=["xlsx", "xls"], key="up_clas_excel")
+        tmpl_bytes = excel_handler.generate_clasificaciones_template()
+        st.download_button(
+            label="📄 Plantilla Excel de Muestra",
+            data=tmpl_bytes,
+            file_name="Plantilla_Importar_Clasificaciones_JD.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True
+        )
+        
+        uploaded_clas_file = st.file_uploader("Subir Archivo Excel", type=["xlsx", "xls"], key="up_clas_excel")
         if uploaded_clas_file is not None:
-            if st.button("🚀 Importar Clasificaciones a Base de Datos", type="primary", use_container_width=True):
+            if st.button("🚀 Importar Clasificaciones", type="primary", use_container_width=True):
                 added, dups, errs = excel_handler.import_clasificaciones_excel(uploaded_clas_file.getvalue())
                 if errs:
                     for err in errs:
                         st.error(err)
                 if added > 0:
-                    st.success(f"✅ ¡Éxito! Se importaron **{added}** nuevas clasificaciones correctamente.")
+                    st.success(f"✅ ¡Éxito! Se importaron **{added}** nuevas clasificaciones.")
                     if dups > 0:
-                        st.info(f"ℹ️ Se omitieron **{dups}** clasificaciones duplicadas que ya existían en la BD.")
+                        st.info(f"ℹ️ Se omitieron **{dups}** clasificaciones duplicadas.")
                     st.rerun()
                 elif dups > 0 and not errs:
                     st.warning(f"⚠️ Todas las clasificaciones del archivo (**{dups}**) ya existían en la BD.")

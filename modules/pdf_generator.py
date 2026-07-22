@@ -346,3 +346,83 @@ def generar_pdf_manual() -> bytes:
         pdf.ln(3)
 
     return bytes(pdf.output())
+
+
+def generar_pdf_catalogo_clasificaciones(df_clasificaciones=None):
+    """
+    Genera un reporte oficial en PDF con el Catálogo de Clasificaciones Activas
+    de J&D Automation Industries utilizando la hoja membretada institucional.
+    """
+    from database import get_clasificaciones_df
+    
+    if df_clasificaciones is None or df_clasificaciones.empty:
+        df_clasificaciones = get_clasificaciones_df()
+
+    pdf = JDPdf(orientation='P', unit='mm', format='A4')
+    pdf.add_page()
+
+    # Título principal del reporte
+    pdf.set_font('Helvetica', 'B', 14)
+    pdf.set_text_color(*COLOR_CHARCOAL)
+    pdf.cell(0, 8, 'CATÁLOGO DE CLASIFICACIONES DE GASTOS Y PROYECTOS', align='L', new_x='LMARGIN', new_y='NEXT')
+    
+    # Subtítulo y fecha
+    pdf.set_font('Helvetica', '', 9)
+    pdf.set_text_color(*COLOR_TEXT_LIGHT)
+    pdf.cell(0, 5, f'J&D AUTOMATION INDUSTRIES S.A. DE C.V.  |  Fecha de emisión: {datetime.date.today().strftime("%d/%m/%Y")}', align='L', new_x='LMARGIN', new_y='NEXT')
+    
+    # Resumen cuantitativo
+    total_items = len(df_clasificaciones)
+    total_rubros = df_clasificaciones['rubro'].nunique() if 'rubro' in df_clasificaciones.columns else 0
+    
+    pdf.ln(2)
+    pdf.set_font('Helvetica', 'B', 9)
+    pdf.set_text_color(*COLOR_CHARCOAL)
+    pdf.cell(0, 5, f'Total de Rubros Principales: {total_rubros}   |   Total de Clasificaciones Registradas: {total_items}', align='L', new_x='LMARGIN', new_y='NEXT')
+    pdf.ln(3)
+
+    # Encabezado de la Tabla
+    # Ancho total en A4 retrato: 180mm disponible
+    col_w = [15, 50, 50, 65]
+    headers = ['ID', 'Rubro Principal', 'Subrubro', 'Concepto Detallado']
+
+    def render_table_header():
+        pdf.set_font('Helvetica', 'B', 9)
+        pdf.set_fill_color(*COLOR_CHARCOAL)
+        pdf.set_text_color(*COLOR_WHITE)
+        for idx, h in enumerate(headers):
+            pdf.cell(col_w[idx], 7, h, border=1, fill=True, align='C' if idx == 0 else 'L')
+        pdf.ln()
+
+    render_table_header()
+
+    # Rellenar filas
+    pdf.set_font('Helvetica', '', 8.5)
+    row_alt = False
+
+    for row in df_clasificaciones.itertuples():
+        if pdf.get_y() > 240:
+            pdf.add_page()
+            render_table_header()
+
+        c_id = str(getattr(row, 'id', ''))
+        rubro = str(getattr(row, 'rubro', ''))
+        subrubro = str(getattr(row, 'subrubro', ''))
+        concepto = str(getattr(row, 'concepto', ''))
+
+        if row_alt:
+            pdf.set_fill_color(248, 250, 252)
+        else:
+            pdf.set_fill_color(255, 255, 255)
+        row_alt = not row_alt
+
+        pdf.set_text_color(*COLOR_CHARCOAL)
+        
+        pdf.cell(col_w[0], 6.5, c_id, border=1, fill=True, align='C')
+        pdf.cell(col_w[1], 6.5, rubro[:28], border=1, fill=True, align='L')
+        pdf.cell(col_w[2], 6.5, subrubro[:28], border=1, fill=True, align='L')
+        pdf.cell(col_w[3], 6.5, concepto[:38], border=1, fill=True, align='L')
+        pdf.ln()
+
+    return bytes(pdf.output())
+
