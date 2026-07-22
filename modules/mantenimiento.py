@@ -120,27 +120,58 @@ def _render_gestion_clasificaciones():
 
     with col_table:
         st.markdown("#### **Catálogo de Clasificaciones Activas**")
+        st.caption("Marque la casilla **Seleccionar** en la tabla para los registros que desee eliminar.")
         df_c = db.get_clasificaciones_df()
         if not df_c.empty:
             df_disp = df_c.copy()
             df_disp.columns = ['ID', 'Rubro Principal', 'Subrubro', 'Concepto Detallado']
-            st.dataframe(df_disp, use_container_width=True, hide_index=True)
+            df_disp.insert(0, 'Seleccionar', False)
             
-            # Opción para borrar
+            edited_df = st.data_editor(
+                df_disp,
+                column_config={
+                    'Seleccionar': st.column_config.CheckboxColumn('Seleccionar', default=False),
+                    'ID': st.column_config.NumberColumn('ID', disabled=True),
+                    'Rubro Principal': st.column_config.TextColumn('Rubro Principal', disabled=True),
+                    'Subrubro': st.column_config.TextColumn('Subrubro', disabled=True),
+                    'Concepto Detallado': st.column_config.TextColumn('Concepto Detallado', disabled=True),
+                },
+                disabled=['ID', 'Rubro Principal', 'Subrubro', 'Concepto Detallado'],
+                use_container_width=True,
+                hide_index=True,
+                key="editor_clasificaciones_multiselect"
+            )
+            
+            # Identificar filas marcadas para eliminación
+            to_delete = edited_df[edited_df['Seleccionar'] == True]
+            num_selected = len(to_delete)
+            
             st.markdown("---")
-            st.markdown("#### **🗑️ Eliminar una Clasificación**")
-            col_del_id, col_del_btn = st.columns([2, 1])
-            with col_del_id:
-                id_eliminar = st.number_input("Ingrese el ID de la clasificación a eliminar:", min_value=1, step=1, key="del_clas_id")
-            with col_del_btn:
-                st.markdown("<div style='height:28px;'></div>", unsafe_allow_html=True)
-                if st.button("Eliminar Clasificación", key="del_clas_btn", use_container_width=True):
-                    success, msg = db.delete_clasificacion(id_eliminar)
-                    if success:
-                        st.success(msg)
+            col_info_del, col_btn_del = st.columns([2, 1])
+            with col_info_del:
+                if num_selected > 0:
+                    st.warning(f"⚠️ **{num_selected}** clasificación(es) seleccionada(s) para eliminar.")
+                else:
+                    st.info("💡 Marque las casillas en la tabla para habilitar la eliminación masiva.")
+                    
+            with col_btn_del:
+                if num_selected > 0:
+                    if st.button(f"🗑️ Eliminar ({num_selected}) Seleccionadas", key="del_clas_multi_btn", type="primary", use_container_width=True):
+                        deleted_count = 0
+                        errors = []
+                        for clas_id in to_delete['ID'].tolist():
+                            success, msg = db.delete_clasificacion(int(clas_id))
+                            if success:
+                                deleted_count += 1
+                            else:
+                                errors.append(f"ID {clas_id}: {msg}")
+                                
+                        if deleted_count > 0:
+                            st.success(f"✅ Se eliminaron **{deleted_count}** clasificaciones exitosamente.")
+                        if errors:
+                            for err in errors:
+                                st.error(err)
                         st.rerun()
-                    else:
-                        st.error(msg)
         else:
             st.info("No hay clasificaciones registradas.")
 
