@@ -122,8 +122,16 @@ st.markdown("""
     }
     
     /* Aplicar tipografía Nexa/Montserrat corporativa */
-    html, body, .stWidget, .stMarkdown, p, span, li, label, input, button, select {
+    html, body, .stWidget, .stMarkdown, p, li, label, input, button, select {
         font-family: 'Montserrat', 'Inter', sans-serif !important;
+    }
+
+    /* Prevenir que la tipografía de íconos de Streamlit (Expander, Sidebar) se corrompa en texto */
+    [data-testid="stExpanderToggleIcon"], 
+    [data-testid="stExpander"] summary *,
+    [data-testid="stExpander"] summary span,
+    [data-testid="stExpander"] svg {
+        font-family: sans-serif !important;
     }
 
     /* Fondo gris claro (#EDEDED) */
@@ -376,7 +384,7 @@ def _render_carga_masiva_excel():
                         st.markdown(f"- {err}")
 
 def _render_control_backorder():
-    st.subheader("Control del Backorder de Órdenes de Compra (OC)")
+    st.subheader("Control de Órdenes de Compra (OC)")
     df_p_activos = db.get_proyectos(only_active=True)
     if df_p_activos.empty:
         st.warning("⚠️ Debe tener al menos un proyecto activo para registrar órdenes de compra.")
@@ -385,7 +393,7 @@ def _render_control_backorder():
     col_list_b, col_form_b = st.columns([2, 1])
     
     with col_form_b:
-        st.markdown("#### **Registrar OC en Backorder**")
+        st.markdown("#### **Registrar Nueva Órden de Compra**")
         oc_num = st.text_input("Número / Folio de OC", placeholder="Ej. OC-2026-042")
         oc_prov = st.text_input("Proveedor", placeholder="Ej. Festo Pneumatic")
         oc_fecha = st.date_input("Fecha Compromiso de Pago", datetime.date.today())
@@ -436,18 +444,53 @@ def _render_control_backorder():
                         else:
                             st.error(up_msg)
             with col_oc_act2:
-                with st.expander("📄 Descargar PDF de Orden de Compra"):
+                with st.expander("Descargar PDF y Correo .EML de Orden de Compra"):
                     oc_list = df_b.to_dict('records')
                     oc_dict_opts = {r['numero_oc']: r for r in oc_list}
-                    sel_oc_num = st.selectbox("Seleccione OC para generar PDF:", list(oc_dict_opts.keys()))
+                    sel_oc_num = st.selectbox("Seleccione Orden de Compra:", list(oc_dict_opts.keys()))
                     if sel_oc_num:
                         oc_data = oc_dict_opts[sel_oc_num]
                         pdf_oc_bytes = pdf_gen.generar_pdf_orden_compra(oc_data)
+                        
                         st.download_button(
                             label=f"📥 Descargar PDF ({sel_oc_num})",
                             data=pdf_oc_bytes,
                             file_name=f"Orden_Compra_{sel_oc_num}.pdf",
                             mime="application/pdf",
+                            use_container_width=True
+                        )
+                        
+                        st.markdown("---")
+                        st.markdown("##### **📩 Generar Correo (.eml) con PDF Adjunto**")
+                        df_users = db.get_usuarios_df()
+                        emails_registrados = []
+                        if not df_users.empty and 'email' in df_users.columns:
+                            emails_registrados = df_users['email'].dropna().tolist()
+                        
+                        email_oc_destino = st.selectbox(
+                            "Correo Destino:",
+                            options=["david.alanis@jydautomation.com.mx", "jesus.morales@jydautomation.com.mx", "administracion@jydautomation.com.mx"] + emails_registrados,
+                            key="oc_eml_dest_sel"
+                        )
+                        
+                        asunto_oc_eml = f"Orden de Compra Folio #{sel_oc_num} — J&D Automation Industries"
+                        
+                        monto_oc_fmt = f"${float(oc_data.get('monto_oc', 0)):,.2f} MXN"
+                        cuerpo_oc_eml = f"""Estimado(a),\n\nAdjunto a este correo encontrará el documento oficial de la ORDEN DE COMPRA enviada por J&D Automation Industries.\n\nDETALLES DE LA ORDEN DE COMPRA:\n------------------------------------------------------------\n* Folio de OC: {oc_data.get('numero_oc', 'N/A')}\n* Proveedor: {oc_data.get('proveedor', 'N/A')}\n* Proyecto Destino: {oc_data.get('proyecto_nombre', 'N/A')}\n* Fecha Compromiso de Pago: {oc_data.get('fecha_compromiso', 'N/A')}\n* Monto Total Neto (IVA Incluido): {monto_oc_fmt}\n* Estado de Pago: {oc_data.get('estado', 'Pendiente')}\n\nTÉRMINOS DE ENTREGA Y FACTURACIÓN:\n------------------------------------------------------------\n1. Entregar los bienes/servicios conforme a la fecha compromiso estipulada.\n2. Toda factura deberá emitirse a nombre de J&D Automation Industries con IVA desglosado.\n3. Indicar el folio {sel_oc_num} en la factura fiscal y remisiones correspondientes.\n\nPor favor revise el documento PDF adjunto como respaldo oficial.\n\nSaludos cordiales,\nDepartamento de Compras & Finanzas | J&D Automation Industries"""
+                        
+                        eml_oc_bytes = generar_eml_bytes(
+                            to_email=email_oc_destino,
+                            subject=asunto_oc_eml,
+                            body_text=cuerpo_oc_eml,
+                            attachment_bytes=pdf_oc_bytes,
+                            attachment_name=f"Orden_Compra_{sel_oc_num}.pdf"
+                        )
+                        
+                        st.download_button(
+                            label="✉️ Descargar Archivo .EML (Para Outlook)",
+                            data=eml_oc_bytes,
+                            file_name=f"Correo_Orden_Compra_{sel_oc_num}.eml",
+                            mime="message/rfc822",
                             use_container_width=True
                         )
         else:
@@ -743,11 +786,11 @@ if menu.startswith("1."):
 
 # ─── MÓDULO 2: PROYECTOS — GESTIÓN & PARETO ─────────────────────────────────
 elif menu.startswith("2."):
-    render_header("Proyectos", "Administre proyectos, órdenes de compra (backorder) y evalúe la salud financiera y pareto de costos.")
+    render_header("Proyectos", "Administre proyectos, órdenes de compra y evalúe la salud financiera y pareto de costos.")
     
     tab_proy_alta, tab_backorder, tab_estado, tab_pareto, tab_progreso = st.tabs([
         "📁 2.1 Alta & Gestión de Proyectos",
-        "📝 2.2 Órdenes de Compra (Backorder)",
+        "📝 2.2 Órdenes de Compra",
         "📊 2.3 Estado General por Proyecto",
         "📉 2.4 Pareto de Costos",
         "📈 2.5 Progreso vs Presupuesto"
@@ -834,7 +877,7 @@ elif menu.startswith("4."):
     if deduc_sel != "Todos":
         df_g_filtered = df_g_filtered[df_g_filtered['deducible'] == deduc_sel]
 
-    tab1, tab2, tab3 = st.tabs(["📊 4.1 Gastos Operativos", "📝 4.2 Backorder de OC", "📁 4.3 Rentabilidad de Proyectos"])
+    tab1, tab2, tab3 = st.tabs(["📊 4.1 Gastos Operativos", "📝 4.2 Órdenes de Compra", "📁 4.3 Rentabilidad de Proyectos"])
     
     with tab1:
         dash.render_gastos_dashboard(df_g_filtered)
