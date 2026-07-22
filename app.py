@@ -365,7 +365,7 @@ def generar_eml_bytes(to_email, subject, body_text, attachment_bytes=None, attac
                     <table style="width: 100%; border-collapse: collapse;">
                         <tr>
                             <td style="vertical-align: middle;">
-                                <img src="cid:logo_jd" alt="J&D Automation" style="max-height: 46px; width: auto; display: block;" />
+                                <img src="cid:logo_jd" alt="J&D Automation" style="max-height: 25px; width: auto; display: block;" />
                             </td>
                             <td style="text-align: right; vertical-align: middle;">
                                 <span style="color: #FFFFFF; font-size: 15px; font-weight: 700; display: block;">J&D AUTOMATION INDUSTRIES</span>

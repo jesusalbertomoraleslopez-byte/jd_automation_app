@@ -133,7 +133,7 @@ def generate_eml_with_report(excel_bytes, excel_filename, semanas, df_values, df
                 <table style="width: 100%; border-collapse: collapse;">
                     <tr>
                         <td style="vertical-align: middle;">
-                            <img src="cid:logo_jd" alt="J&D Automation" style="max-height: 46px; width: auto; display: block;" />
+                            <img src="cid:logo_jd" alt="J&D Automation" style="max-height: 25px; width: auto; display: block;" />
                         </td>
                         <td style="text-align: right; vertical-align: middle;">
                             <h1 style="color: #FFFFFF; margin: 0; font-size: 17px; font-weight: bold; text-transform: uppercase;">Reporte Ejecutivo de Flujo de Caja</h1>
