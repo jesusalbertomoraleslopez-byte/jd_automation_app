@@ -403,6 +403,26 @@ def delete_clasificacion(clasif_id):
         conn.close()
         return False, str(e)
 
+def update_clasificacion(clasif_id, rubro, subrubro, concepto):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            UPDATE clasificaciones 
+            SET rubro = ?, subrubro = ?, concepto = ? 
+            WHERE id = ?
+        """, (rubro, subrubro, concepto, clasif_id))
+        conn.commit()
+        conn.close()
+        reindex_clasificaciones()
+        return True, "Clasificación actualizada."
+    except sqlite3.IntegrityError:
+        conn.close()
+        return False, "Esta combinación Rubro / Subrubro / Concepto ya existe."
+    except Exception as e:
+        conn.close()
+        return False, str(e)
+
 def get_rubros():
     conn = get_db_connection()
     rows = conn.execute("SELECT DISTINCT rubro FROM clasificaciones ORDER BY rubro").fetchall()

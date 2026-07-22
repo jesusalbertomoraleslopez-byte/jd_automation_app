@@ -120,7 +120,7 @@ def _render_gestion_clasificaciones():
 
     with col_table:
         st.markdown("#### **Catálogo de Clasificaciones Activas**")
-        st.caption("Marque la casilla **Seleccionar** en la tabla para los registros que desee eliminar.")
+        st.caption("✍️ **Edición Directa:** Haga doble clic en cualquier celda para modificarla. | 🗑️ **Eliminación:** Marque las casillas para eliminar en lote.")
         df_c = db.get_clasificaciones_df()
         if not df_c.empty:
             df_disp = df_c.copy()
@@ -132,31 +132,60 @@ def _render_gestion_clasificaciones():
                 column_config={
                     'Seleccionar': st.column_config.CheckboxColumn('Seleccionar', default=False),
                     'ID': st.column_config.NumberColumn('ID', disabled=True),
-                    'Rubro Principal': st.column_config.TextColumn('Rubro Principal', disabled=True),
-                    'Subrubro': st.column_config.TextColumn('Subrubro', disabled=True),
-                    'Concepto Detallado': st.column_config.TextColumn('Concepto Detallado', disabled=True),
+                    'Rubro Principal': st.column_config.TextColumn('Rubro Principal', required=True),
+                    'Subrubro': st.column_config.TextColumn('Subrubro', required=True),
+                    'Concepto Detallado': st.column_config.TextColumn('Concepto Detallado', required=True),
                 },
-                disabled=['ID', 'Rubro Principal', 'Subrubro', 'Concepto Detallado'],
+                disabled=['ID'],
                 use_container_width=True,
                 hide_index=True,
                 key="editor_clasificaciones_multiselect"
             )
             
-            # Identificar filas marcadas para eliminación
+            # 1. Identificar filas editadas (cambios en Rubro, Subrubro o Concepto)
+            changed_mask = (
+                (df_disp['Rubro Principal'] != edited_df['Rubro Principal']) |
+                (df_disp['Subrubro'] != edited_df['Subrubro']) |
+                (df_disp['Concepto Detallado'] != edited_df['Concepto Detallado'])
+            )
+            edited_rows = edited_df[changed_mask]
+            num_edited = len(edited_rows)
+
+            # 2. Identificar filas marcadas para eliminación
             to_delete = edited_df[edited_df['Seleccionar'] == True]
             num_selected = len(to_delete)
             
             st.markdown("---")
-            col_info_del, col_btn_del = st.columns([2, 1])
-            with col_info_del:
-                if num_selected > 0:
-                    st.warning(f"⚠️ **{num_selected}** clasificación(es) seleccionada(s) para eliminar.")
+            col_save_btn, col_del_btn = st.columns([1, 1])
+            
+            with col_save_btn:
+                if num_edited > 0:
+                    if st.button(f"💾 Guardar ({num_edited}) Edición(es)", key="save_clas_edit_btn", type="primary", use_container_width=True):
+                        updated_count = 0
+                        errors = []
+                        for _, r in edited_rows.iterrows():
+                            c_id = int(r['ID'])
+                            rub = str(r['Rubro Principal']).strip()
+                            sub = str(r['Subrubro']).strip()
+                            con = str(r['Concepto Detallado']).strip()
+                            if rub and sub and con:
+                                success, msg = db.update_clasificacion(c_id, rub, sub, con)
+                                if success:
+                                    updated_count += 1
+                                else:
+                                    errors.append(f"ID {c_id}: {msg}")
+                        if updated_count > 0:
+                            st.success(f"✅ Se actualizaron **{updated_count}** clasificaciones exitosamente.")
+                        if errors:
+                            for err in errors:
+                                st.error(err)
+                        st.rerun()
                 else:
-                    st.info("💡 Marque las casillas en la tabla para habilitar la eliminación masiva.")
+                    st.caption("ℹ️ Sin cambios pendientes de guardar.")
                     
-            with col_btn_del:
+            with col_del_btn:
                 if num_selected > 0:
-                    if st.button(f"🗑️ Eliminar ({num_selected}) Seleccionadas", key="del_clas_multi_btn", type="primary", use_container_width=True):
+                    if st.button(f"🗑️ Eliminar ({num_selected}) Seleccionadas", key="del_clas_multi_btn", use_container_width=True):
                         deleted_count = 0
                         errors = []
                         for clas_id in to_delete['ID'].tolist():
@@ -172,6 +201,8 @@ def _render_gestion_clasificaciones():
                             for err in errors:
                                 st.error(err)
                         st.rerun()
+                else:
+                    st.caption("ℹ️ Seleccione casillas para eliminar.")
         else:
             st.info("No hay clasificaciones registradas.")
 
