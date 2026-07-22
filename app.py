@@ -148,19 +148,44 @@ st.markdown("""
         border-color: #FE8C29 !important;
     }
 
-    /* Proteger íconos y SVGs en desplegables y expanders de corrupción tipográfica */
+    /* ─── PROTECCIÓN COMPLETA DE ÍCONOS MATERIAL ICONS EN EXPANDERS Y DESPLEGABLES ─── */
+    /* El ícono de expander usa ligaduras de Material Icons: "keyboard_arrow_right" 
+       Forzar la fuente correcta para que renderice como símbolo ▶ en vez de texto */
+    [data-testid="stExpander"] summary span {
+        font-family: 'Material Icons', 'Material Symbols Rounded', 'Material Icons Outlined', serif !important;
+        font-size: 20px !important;
+        font-style: normal !important;
+        font-weight: normal !important;
+        line-height: 1 !important;
+        letter-spacing: normal !important;
+        text-rendering: optimizeLegibility !important;
+        -webkit-font-feature-settings: 'liga' !important;
+        font-feature-settings: 'liga' !important;
+        color: #434E62 !important;
+    }
+
+    /* Proteger SVGs e íconos en desplegables */
     [data-testid="stSelectbox"] svg,
     [data-testid="stMultiSelect"] svg,
     [data-baseweb="select"] svg,
     [data-baseweb="icon"],
     [data-testid="stExpanderToggleIcon"],
-    [data-testid="stExpander"] summary *,
-    [data-testid="stExpander"] summary span,
     [data-testid="stExpander"] svg {
-        font-family: sans-serif !important;
+        font-family: 'Material Icons', 'Material Symbols Rounded', sans-serif !important;
         display: inline-block !important;
         visibility: visible !important;
         opacity: 1 !important;
+    }
+
+    /* SVG dentro del summary: tamáño correcto */
+    [data-testid="stExpander"] summary svg,
+    [data-testid="stExpander"] details summary svg {
+        display: inline-block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        width: 20px !important;
+        height: 20px !important;
+        color: #434E62 !important;
     }
 
     /* ─── ESTILOS CORPORATIVOS PARA ACCORDEONES Y EXPANDERS ─── */
