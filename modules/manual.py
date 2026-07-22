@@ -35,8 +35,39 @@ def render_manual():
         2. Llene los campos en la hoja **Gastos** (fecha, concepto general, monto, rubros, proyecto, método de pago, etc.).
         3. Suba el archivo en **"Importar Gastos"**. El sistema validará que la jerarquía (Rubro -> Subrubro -> Concepto) sea correcta antes de insertar los registros.
 
-        #### **3. Módulo 8 — Mantenimiento (Solo Administrador)**
-        * **CRUD de Clasificaciones**: Permite agregar y eliminar Rubros, Subrubros y Conceptos Detallados en la base de datos de forma dinámica.
+        #### **3. Módulo 3 — Flujo de Caja Proyectado y Ejecución de Gastos (Opción A)**
+        
+        ##### **🔄 Flujo Completo de Información: De Programado a Ejecutado**
+        
+        ```
+        [ PASO 1: Programar Compromiso ] ➔ [ PASO 2: Ejecución y Pago ] ➔ [ PASO 3: Registro Contable & Matriz ]
+        (Módulo 3.4 - Estado: Pendiente 🌸)   (Módulo 3.2 - Asignación Banco)   (Estatus: Pagado 🟢 / Matriz Verde)
+        ```
+        
+        1. **Paso 1 — Programación del Gasto (Compromiso Futuro)**:
+           * Ingrese a **3. Flujo de Caja Proyectado ➔ ⚙️ 3.4 Programación General** (o *Egresos Fijos Recurrentes*).
+           * Registre el compromiso introduciendo: Concepto/Servicio, Monto Estimado, Fecha Compromiso y Rubro.
+           * **Estatus Inicial:** El gasto queda como **Pendiente 🌸** y se refleja en la Matriz Semanal (3.1) en celda de color **Rosa**.
+
+        2. **Paso 2 — Ejecución y Pago de la Transacción (Opción A - Flujo Rápido)**:
+           * Al realizar el pago real, vaya a **3. Flujo de Caja Proyectado ➔ ⚡ 3.2 Ejecutar Gastos Planeados**.
+           * Seleccione el gasto pendiente de la lista desplegable.
+           * Confirme/Ajuste los datos reales de la transacción:
+             * **Monto Real Pagado** (en caso de variación respecto al estimado).
+             * **Fecha Real de Pago**.
+             * **Cuenta / Banco de Salida** (ej. *BBVA Empresa*, *Caja Chica*, etc.).
+             * **Método de Pago** (*Transferencia*, *Tarjeta*, *Efectivo*).
+             * **Estado Fiscal** (*Facturado* / *No Facturado*).
+           * Presione **"Confirmar Ejecución y Pago"**.
+
+        3. **Paso 3 — Actualización Automática e Impacto Financiero**:
+           * **Registro Contable:** El sistema genera automáticamente el registro oficial de egreso real en la base de datos.
+           * **Cambio de Estado:** El compromiso programado pasa de *Pendiente* a **PAGADO**.
+           * **Matriz de Flujo Semanal (3.1):** La celda de la semana correspondiente cambia automáticamente de **Rosa (Pendiente)** a **Verde (Ejecutado/Pagado)**.
+           * **Caja y Bancos:** Se recalcula el Balance Neto y Saldo Acumulado de la empresa en tiempo real.
+
+        #### **4. Módulo 8 — Mantenimiento del Sistema (Solo Administrador)**
+        * **CRUD y Edición de Clasificaciones**: Catálogo dinámico para agregar, editar directamente en celdas, renumerar IDs consecitivamente (1..N), exportar en PDF/Excel e importar masivamente.
         * **Gestión de Usuarios**: Permite crear usuarios, asignarles roles (Administrador, Capturista, Consultor), cambiar contraseñas y desactivar cuentas.
         * **Edición de Registros**: Permite corregir o eliminar registros de gastos específicos directamente en una tabla interactiva.
         """)

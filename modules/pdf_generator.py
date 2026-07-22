@@ -317,11 +317,14 @@ def generar_pdf_manual() -> bytes:
          "  2.4 Pareto de Costos: Gráfica 80/20 de los conceptos de mayor costo por proyecto.\n"
          "  2.5 Progreso vs Presupuesto: Avance porcentual de la ejecución presupuestaria."),
 
-        ("5. Módulo 3 - Flujo de Caja Proyectado",
-         "Permite proyectar la salud financiera de la empresa semana a semana (3 meses):\n"
+        ("5. Módulo 3 - Flujo de Caja Proyectado y Flujo de Información de Pagos (Opción A)",
+         "Permite proyectar la salud financiera de la empresa semana a semana (3 meses) y ejecutar pagos:\n"
          "  3.1 Matriz de Flujo Semanal: Vista interactiva con código de colores (Verde para ejecutados, Rosa para pendientes).\n"
-         "  3.2 Ejecutar Gastos Planeados: Pasa un gasto programado a egreso real con asignación de banco y recibo PDF.\n"
-         "  3.3 Exportar Excel y Correo .EML: Descarga la matriz quincenal en Excel y genera el correo ejecutivo .eml con gráficos."),
+         "  3.2 Flujo de Información de Pagos (Opción A):\n"
+         "      * PASO 1 (Programación): Se registra el gasto futuro en 3.4 (Estado: Pendiente / Celda Rosa en Matriz).\n"
+         "      * PASO 2 (Ejecución): En 3.2 se selecciona el gasto pendiente, se confirma el monto/fecha real y se asigna Cuenta Bancaria y Método de Pago.\n"
+         "      * PASO 3 (Impacto Contable): El sistema genera el egreso real en la BD, cambia el estatus a PAGADO, vuelve verde la celda en la Matriz y recalcula el Saldo Acumulado de Caja en tiempo real.\n"
+         "  3.3 Exportar Excel y Correo .EML: Descarga la matriz quincenal en Excel y genera el correo ejecutivo .eml con gráficos e imagen de cabecera."),
 
         ("6. Módulo 8 - Mantenimiento del Sistema (Solo Administrador)",
          "  8.1 Cuentas & Tarjetas: Registro de bancos, tarjetas y métodos de pago.\n"
