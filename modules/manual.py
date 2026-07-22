@@ -35,22 +35,26 @@ def render_manual():
         2. Llene los campos en la hoja **Gastos** (fecha, concepto general, monto, rubros, proyecto, método de pago, etc.).
         3. Suba el archivo en **"Importar Gastos"**. El sistema validará que la jerarquía (Rubro -> Subrubro -> Concepto) sea correcta antes de insertar los registros.
 
-        #### **3. Módulo 3 — Flujo de Caja Proyectado y Ejecución de Gastos (Opción A)**
+        #### **3. Módulo 3 — Flujo de Caja Proyectado y Ejecución de Gastos (Flujo Secuencial 1 ➔ 2 ➔ 3 ➔ 4)**
         
         ##### **🔄 Flujo Completo de Información: De Programado a Ejecutado**
         
         ```
-        [ PASO 1: Programar Compromiso ] ➔ [ PASO 2: Ejecución y Pago ] ➔ [ PASO 3: Registro Contable & Matriz ]
-        (Módulo 3.4 - Estado: Pendiente 🌸)   (Módulo 3.2 - Asignación Banco)   (Estatus: Pagado 🟢 / Matriz Verde)
+        [ PASO 1: Programar Compromiso ] ➔ [ PASO 2: Visualizar Matriz ] ➔ [ PASO 3: Ejecución & Pago Real ] ➔ [ PASO 4: Exportación & Correo ]
+        (Módulo 3.1 - Estado: Pendiente 🌸) (Módulo 3.2 - Matriz Verde/Rosa) (Módulo 3.3 - Asignación Banco/PDF) (Módulo 3.4 - Excel / EML)
         ```
         
-        1. **Paso 1 — Programación del Gasto (Compromiso Futuro)**:
-           * Ingrese a **3. Flujo de Caja Proyectado ➔ ⚙️ 3.4 Programación General** (o *Egresos Fijos Recurrentes*).
+        1. **Paso 1 — ⚙️ 3.1 Programación General (Compromiso Futuro)**:
+           * Ingrese a **3. Flujo de Caja Proyectado ➔ ⚙️ 3.1 Programación General** (o *Egresos Fijos Recurrentes / Ingresos*).
            * Registre el compromiso introduciendo: Concepto/Servicio, Monto Estimado, Fecha Compromiso y Rubro.
-           * **Estatus Inicial:** El gasto queda como **Pendiente 🌸** y se refleja en la Matriz Semanal (3.1) en celda de color **Rosa**.
+           * **Estatus Inicial:** El gasto queda como **Pendiente 🌸** y se refleja en la Matriz Semanal (3.2) en celda de color **Rosa**.
 
-        2. **Paso 2 — Ejecución y Pago de la Transacción (Opción A - Flujo Rápido)**:
-           * Al realizar el pago real, vaya a **3. Flujo de Caja Proyectado ➔ ⚡ 3.2 Ejecutar Gastos Planeados**.
+        2. **Paso 2 — 📊 3.2 Matriz de Flujo Semanal (Vista Proyectada)**:
+           * Evalúe la proyección financiera a 12 semanas.
+           * Las celdas verdes corresponden a gastos pagados/ejecutados y las celdas rosas a compromisos pendientes.
+
+        3. **Paso 3 — ⚡ 3.3 Ejecutar Gastos Planeados (Opción A - Liquidación y Pago Real)**:
+           * Al realizar el pago real, vaya a **3. Flujo de Caja Proyectado ➔ ⚡ 3.3 Ejecutar Gastos Planeados**.
            * Seleccione el gasto pendiente de la lista desplegable.
            * Confirme/Ajuste los datos reales de la transacción:
              * **Monto Real Pagado** (en caso de variación respecto al estimado).
@@ -60,11 +64,8 @@ def render_manual():
              * **Estado Fiscal** (*Facturado* / *No Facturado*).
            * Presione **"Confirmar Ejecución y Pago"**.
 
-        3. **Paso 3 — Actualización Automática e Impacto Financiero**:
-           * **Registro Contable:** El sistema genera automáticamente el registro oficial de egreso real en la base de datos.
-           * **Cambio de Estado:** El compromiso programado pasa de *Pendiente* a **PAGADO**.
-           * **Matriz de Flujo Semanal (3.1):** La celda de la semana correspondiente cambia automáticamente de **Rosa (Pendiente)** a **Verde (Ejecutado/Pagado)**.
-           * **Caja y Bancos:** Se recalcula el Balance Neto y Saldo Acumulado de la empresa en tiempo real.
+        4. **Paso 4 — 📥 3.4 Exportación & Envío Ejecutivo (Reportes Excel & .EML)**:
+           * Descargue la hoja de flujo semanal en Excel o genere el correo corporativo `.eml` listo para enviar en Outlook.
 
         #### **4. Módulo 8 — Mantenimiento del Sistema (Solo Administrador)**
         * **CRUD y Edición de Clasificaciones**: Catálogo dinámico para agregar, editar directamente en celdas, renumerar IDs consecitivamente (1..N), exportar en PDF/Excel e importar masivamente.

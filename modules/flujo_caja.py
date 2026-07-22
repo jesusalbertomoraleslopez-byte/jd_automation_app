@@ -202,307 +202,21 @@ def calculate_cashflow_matrix(semanas, saldo_inicial_caja):
     return df_values, df_status, inflow_rows, outflow_rows
 
 def render_flujo_caja_modulo():
-    tab_matrix, tab_exec, tab_export, tab_setup = st.tabs([
-        "📊 3.1 Matriz de Flujo Semanal",
-        "⚡ 3.2 Ejecutar Gastos Planeados",
-        "📥 3.3 Exportar Excel de Flujo",
-        "⚙️ 3.4 Programación General"
+    tab_setup, tab_matrix, tab_exec, tab_export = st.tabs([
+        "⚙️ 3.1 Programación General (Paso 1)",
+        "📊 3.2 Matriz de Flujo Semanal (Paso 2)",
+        "⚡ 3.3 Ejecutar Gastos Planeados (Paso 3)",
+        "📥 3.4 Exportación & Envío Ejecutivo (Paso 4)"
     ])
 
     semanas = get_semanas()
-
-    # Saldo Inicial configurable
     df_accounts = db.get_cuentas()
     saldo_inicial_real = 500000.0  # Default premium
 
-    # ─── TAB 3.1: MATRIZ DE FLUJO ───
-    with tab_matrix:
-        st.markdown("### **Matriz de Movimientos Financieros (Vista Semanal)**")
-        st.markdown("Las celdas <span style='color:#155724;background-color:#D4EDDA;padding:2px 5px;border-radius:3px;font-weight:bold;'>Verdes</span> indican transacciones reales/ejecutadas, mientras que las <span style='color:#721C24;background-color:#F8D7DA;padding:2px 5px;border-radius:3px;'>Rosas</span> corresponden a compromisos pendientes.", unsafe_allow_html=True)
-        
-        col_init, col_empty = st.columns([1, 2])
-        with col_init:
-            saldo_inicial = st.number_input(
-                "💰 Saldo Inicial de Caja (Bancos)",
-                min_value=0.0,
-                value=float(saldo_inicial_real),
-                step=10000.0,
-                key="matrix_init_bal"
-            )
-
-        df_values, df_status, inflow_rows, outflow_rows = calculate_cashflow_matrix(semanas, saldo_inicial)
-
-        # Agregar filas calculadas
-        total_entradas = df_values.loc[inflow_rows].sum()
-        total_salidas = df_values.loc[outflow_rows].sum()
-        balance = total_entradas - total_salidas
-
-        # Calcular saldos acumulados
-        saldo_acumulado = []
-        caja_corr = saldo_inicial
-        for b_val in balance:
-            caja_corr += b_val
-            saldo_acumulado.append(caja_corr)
-
-        # Construir DataFrames finales para visualización
-        df_vals_disp = df_values.copy()
-        df_vals_disp.loc['TOTAL ENTRADAS'] = total_entradas
-        df_vals_disp.loc['TOTAL SALIDAS'] = total_salidas
-        df_vals_disp.loc['BALANCE (NETO)'] = balance
-        df_vals_disp.loc['SALDO ACUMULADO'] = saldo_acumulado
-
-        # Asignar estados de filas de totales
-        df_status_disp = df_status.copy()
-        df_status_disp.loc['TOTAL ENTRADAS'] = 'Ninguno'
-        df_status_disp.loc['TOTAL SALIDAS'] = 'Ninguno'
-        df_status_disp.loc['BALANCE (NETO)'] = 'Ninguno'
-        df_status_disp.loc['SALDO ACUMULADO'] = 'Ninguno'
-
-        # Dar formato de moneda
-        df_format = df_vals_disp.copy()
-        
-        # Pandas Styler para colorear celdas según estado
-        def style_cells(data):
-            styles = pd.DataFrame('', index=data.index, columns=data.columns)
-            for col in data.columns:
-                for idx in data.index:
-                    status = df_status_disp.loc[idx, col]
-                    val = df_vals_disp.loc[idx, col]
-                    
-                    if idx in ('TOTAL ENTRADAS', 'TOTAL SALIDAS', 'BALANCE (NETO)'):
-                        styles.loc[idx, col] = 'background-color: #F2F2F2; font-weight: bold; border-top: 1px solid #CCCCCC;'
-                    elif idx == 'SALDO ACUMULADO':
-                        if val >= 0:
-                            styles.loc[idx, col] = 'background-color: #E2F0D9; font-weight: bold; border-top: 1px solid #000000; border-bottom: 2px double #000000;'
-                        else:
-                            styles.loc[idx, col] = 'background-color: #FCE4D6; font-weight: bold; border-top: 1px solid #000000; border-bottom: 2px double #000000; color: #C00000;'
-                    else:
-                        if val > 0:
-                            if status in ('Cobrado', 'Pagado'):
-                                styles.loc[idx, col] = 'background-color: #D4EDDA; color: #155724; font-weight: bold;'
-                            elif status == 'Pendiente':
-                                styles.loc[idx, col] = 'background-color: #F8D7DA; color: #721C24;'
-            return styles
-
-        st.dataframe(
-            df_format.style.apply(style_cells, axis=None).format('${:,.2f}'),
-            use_container_width=True,
-            height=500
-        )
-
-        # Alertas de flujo
-        for q_idx, q in enumerate(semanas):
-            if saldo_acumulado[q_idx] < 0:
-                st.error(f"⚠️ **Alerta de Flujo:** Se estima un saldo de caja deficitario de **${saldo_acumulado[q_idx]:,.2f} MXN** para la semana **{q['label']}**. Planifique cobranzas o postergue egresos.")
-
-    # ─── TAB 3.2: EJECUTAR GASTOS PLANEADOS ───
-    with tab_exec:
-        st.markdown("### **Ejecutar Gastos Planeados (Pasar a Real)**")
-        st.markdown("Seleccione un gasto programado de la lista de pendientes, asocie la cuenta bancaria de retiro, el método de pago y ejecútelo oficialmente en la base de datos de egresos.")
-
-        df_pending = db.get_gastos_programados_df()
-        if not df_pending.empty:
-            df_pending = df_pending[df_pending['estado'] == 'Pendiente']
-
-        if not df_pending.empty:
-            df_pending['monto_disp'] = df_pending.apply(lambda r: f"{r['concepto']} — ${r['monto']:,.2f} (Fecha: {r['fecha_compromiso']})", axis=1)
-            
-            selected_option = st.selectbox("Seleccione el Gasto Programado a Ejecutar", df_pending['monto_disp'].tolist())
-            selected_row = df_pending[df_pending['monto_disp'] == selected_option].iloc[0]
-            
-            st.markdown("---")
-            st.markdown("#### **Detalles de la Transacción Real**")
-            
-            col_ex1, col_ex2 = st.columns(2)
-            with col_ex1:
-                ex_fecha = st.date_input("Fecha de Pago Real", datetime.date.today())
-                ex_concepto = st.text_input("Concepto Real", value=str(selected_row['concepto']))
-                ex_monto = st.number_input("Monto Neto Cobrado (IVA Incluido)", value=float(selected_row['monto']), min_value=0.01, step=100.0, format="%.2f")
-            
-            with col_ex2:
-                ex_metodo = st.selectbox("Método de Pago Efectuado", ["Tarjeta de Crédito", "Transferencia Bancaria", "Efectivo"])
-                
-                # Filtrar cuentas asociadas al método
-                df_accounts_ex = db.get_cuentas()
-                df_accounts_ex_filtered = df_accounts_ex[df_accounts_ex['tipo'] == ex_metodo]
-                
-                if not df_accounts_ex_filtered.empty:
-                    ex_cuenta_name = st.selectbox("Cuenta / Tarjeta de Cargo", df_accounts_ex_filtered['nombre'].tolist())
-                    ex_cuenta_row = df_accounts_ex_filtered[df_accounts_ex_filtered['nombre'] == ex_cuenta_name].iloc[0]
-                    ex_cuenta_id = ex_cuenta_row['id']
-                else:
-                    ex_cuenta_id = None
-                    st.warning(f"No hay cuentas configuradas para el método: {ex_metodo}. Regístrelas en Inicio → Cuentas.")
-            
-            col_ex3, col_ex4 = st.columns(2)
-            with col_ex3:
-                ex_deducible = st.selectbox("¿Deducible / Facturable?", ["Sí", "No"])
-                ex_estado_fact = st.selectbox("Estatus de Facturación", ["Facturado", "Pendiente"])
-                
-            if st.button("🚀 Ejecutar y Registrar Gasto Oficialmente", use_container_width=True):
-                if ex_cuenta_id:
-                    # 1. Crear gasto real
-                    success, insert_id = db.add_gasto(
-                        fecha=ex_fecha.strftime('%Y-%m-%d'),
-                        concepto=ex_concepto,
-                        monto_neto=ex_monto,
-                        rubro=selected_row['categoria'],
-                        subrubro='Gastos Fijos Programados',
-                        concepto_detallado=selected_row['concepto'],
-                        proyecto_id=None,
-                        deducible=ex_deducible,
-                        estado_facturacion=ex_estado_fact,
-                        metodo_pago=ex_metodo,
-                        cuenta_id=ex_cuenta_id,
-                        rfc_proveedor=None,
-                        uuid_fiscal=None
-                    )
-                    
-                    if success:
-                        # 2. Generar PDF de respaldo obligatorio
-                        gasto_pdf_info = {
-                            'id': insert_id,
-                            'fecha': ex_fecha.strftime('%Y-%m-%d'),
-                            'concepto': ex_concepto,
-                            'monto_neto': ex_monto,
-                            'proyecto_nombre': 'Gastos Generales / Fijos',
-                            'metodo_pago': ex_metodo,
-                            'cuenta_nombre': ex_cuenta_name,
-                            'rubro': selected_row['categoria'],
-                            'subrubro': 'Gastos Fijos Programados',
-                            'concepto_detallado': selected_row['concepto'],
-                            'deducible': ex_deducible,
-                            'estado_facturacion': ex_estado_fact,
-                            'rfc_proveedor': None,
-                            'uuid_fiscal': None
-                        }
-                        
-                        pdf_bytes = pdf_gen.generar_pdf_gasto(gasto_pdf_info)
-                        local_pdf_name = f"recibo_gasto_{insert_id}_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}.pdf"
-                        
-                        COMPROBANTES_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'comprobantes')
-                        os.makedirs(COMPROBANTES_DIR, exist_ok=True)
-                        
-                        with open(os.path.join(COMPROBANTES_DIR, local_pdf_name), "wb") as f:
-                            f.write(pdf_bytes)
-                            
-                        db.update_gasto(insert_id, pdf_filename=local_pdf_name)
-                        
-                        # 3. Marcar programado como 'Pagado'
-                        db.update_gasto_programado_row(
-                            gasto_id=selected_row['id'],
-                            concepto=selected_row['concepto'],
-                            monto=selected_row['monto'],
-                            fecha_compromiso=selected_row['fecha_compromiso'],
-                            categoria=selected_row['categoria'],
-                            recurrente=selected_row['recurrente'],
-                            frecuencia=selected_row['frecuencia'],
-                            estado='Pagado'
-                        )
-                        
-                        st.success(f"🎉 Gasto ejecutado y guardado con éxito. ID Real: {insert_id}.")
-                        st.session_state['last_pdf_bytes'] = pdf_bytes
-                        st.session_state['last_pdf_name'] = local_pdf_name
-                        st.session_state['gasto_guardado_exito'] = True
-                        st.rerun()
-                    else:
-                        st.error(f"Error al registrar gasto: {insert_id}")
-                else:
-                    st.error("Debe seleccionar una cuenta de cargo válida.")
-        else:
-            st.info("No hay gastos programados pendientes por ejecutar.")
-
-        # ─── TABLA INFERIOR DE MOVIMIENTOS Y GASTOS EJECUTADOS ───
-        st.markdown("---")
-        st.markdown("#### **📋 Historial de Movimientos y Transacciones Reales**")
-        st.caption("A continuación se muestra el registro completo de los movimientos ejecutados y guardados en el sistema.")
-        
-        df_movs = db.get_gastos_df()
-        if not df_movs.empty:
-            df_movs_disp = df_movs[[
-                'id', 'fecha', 'concepto', 'monto_neto', 'rubro', 
-                'metodo_pago', 'cuenta_nombre', 'deducible', 'estado_facturacion'
-            ]].copy()
-            
-            df_movs_disp['monto_neto'] = df_movs_disp['monto_neto'].apply(lambda v: f"${v:,.2f}")
-            df_movs_disp.columns = [
-                'ID', 'Fecha Pago', 'Concepto Real', 'Monto Neto ($)', 
-                'Rubro / Categoría', 'Método Pago', 'Cuenta / Banco Cargo', 'Deducible', 'Estatus Facturación'
-            ]
-            
-            st.dataframe(
-                df_movs_disp,
-                use_container_width=True,
-                hide_index=True,
-                height=350
-            )
-        else:
-            st.info("Aún no hay movimientos ejecutados registrados.")
-
-    # ─── TAB 3.3: EXPORTAR EXCEL DE FLUJO ───
-    with tab_export:
-        st.markdown("### **Descargar Reportes y Plantilla de Envío**")
-        st.markdown("Obtenga la proyección de flujo en Excel o genere la plantilla de correo corporativo (.eml) con el análisis financiero, gráficos incrustados y el Excel adjunto automáticamente para su envío rápido.")
-        
-        try:
-            df_values_e, df_status_e, _, _ = calculate_cashflow_matrix(semanas, saldo_inicial_real)
-            
-            excel_filename = f"Flujo_de_Caja_JD_Automation_{datetime.date.today().strftime('%Y%m%d')}.xlsx"
-            excel_bytes = excel_h.export_cashflow_matrix_excel(
-                semanas=semanas,
-                row_names=df_values_e.index.tolist(),
-                df_values=df_values_e,
-                df_status=df_status_e,
-                saldo_inicial=saldo_inicial_real
-            )
-            
-            col_d1, col_d2 = st.columns(2)
-            
-            with col_d1:
-                st.markdown("##### **📄 Proyección de Flujo de Caja**")
-                st.markdown("Descargue el archivo de Excel formateado con subtotales, fórmulas y códigos de colores.")
-                st.download_button(
-                    label="📥 Descargar Hoja de Flujo (.xlsx)",
-                    data=excel_bytes,
-                    file_name=excel_filename,
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    use_container_width=True
-                )
-                
-            with col_d2:
-                st.markdown("##### **📧 Correo Outlook Automático**")
-                st.markdown("Descargue el archivo `.eml` listo para abrir en su gestor de correo con el análisis, gráficos incrustados y Excel adjunto.")
-                
-                try:
-                    import modules.eml_generator as eml_gen
-                    eml_bytes = eml_gen.generate_eml_with_report(
-                        excel_bytes=excel_bytes,
-                        excel_filename=excel_filename,
-                        semanas=semanas,
-                        df_values=df_values_e,
-                        df_status=df_status_e,
-                        saldo_inicial=saldo_inicial_real
-                    )
-                    
-                    eml_filename = f"Reporte_Semanal_y_Proyeccion_Flujo_de_Caja_JD_Automation_{datetime.date.today().strftime('%d-%m-%Y')}.eml"
-                    
-                    st.download_button(
-                        label="✉️ Descargar Correo Ejecutivo (.eml)",
-                        data=eml_bytes,
-                        file_name=eml_filename,
-                        mime="message/rfc822",
-                        use_container_width=True
-                    )
-                except Exception as ex_eml:
-                    st.error(f"Error al generar correo .eml: {str(ex_eml)}")
-            
-            st.success("¡Documentos y plantillas generados con éxito!")
-        except Exception as e:
-            st.error(f"Error al estructurar los reportes: {str(e)}")
-
-    # ─── TAB 3.4: PROGRAMACIÓN GENERAL ───
+    # ─── TAB 3.1: PROGRAMACIÓN GENERAL (PASO 1) ───
     with tab_setup:
-        st.markdown("### **Mantenimiento y Registro de Plantillas Financieras**")
+        st.markdown("### **⚙️ Paso 1: Mantenimiento y Registro de Plantillas Financieras**")
+        st.markdown("Registre y programe los egresos fijos recurrentes y los ingresos por proyectos. Toda información aquí registrada alimentará en automático la Matriz Semanal de Flujo.")
         
         df_g_prog = db.get_gastos_programados_df()
         df_i_prog = db.get_ingresos_programados_df()
@@ -669,3 +383,273 @@ def render_flujo_caja_modulo():
                         st.rerun()
                 else:
                     st.info("No hay ingresos programados.")
+
+    # ─── TAB 3.2: MATRIZ DE FLUJO SEMANAL (PASO 2) ───
+    with tab_matrix:
+        st.markdown("### **📊 Paso 2: Matriz de Movimientos Financieros (Vista Semanal)**")
+        st.markdown("Las celdas <span style='color:#155724;background-color:#D4EDDA;padding:2px 5px;border-radius:3px;font-weight:bold;'>Verdes</span> indican transacciones reales/ejecutadas, mientras que las <span style='color:#721C24;background-color:#F8D7DA;padding:2px 5px;border-radius:3px;'>Rosas</span> corresponden a compromisos pendientes.", unsafe_allow_html=True)
+        
+        col_init, col_empty = st.columns([1, 2])
+        with col_init:
+            saldo_inicial = st.number_input(
+                "💰 Saldo Inicial de Caja (Bancos)",
+                min_value=0.0,
+                value=float(saldo_inicial_real),
+                step=10000.0,
+                key="matrix_init_bal"
+            )
+
+        df_values, df_status, inflow_rows, outflow_rows = calculate_cashflow_matrix(semanas, saldo_inicial)
+
+        total_entradas = df_values.loc[inflow_rows].sum()
+        total_salidas = df_values.loc[outflow_rows].sum()
+        balance = total_entradas - total_salidas
+
+        saldo_acumulado = []
+        caja_corr = saldo_inicial
+        for b_val in balance:
+            caja_corr += b_val
+            saldo_acumulado.append(caja_corr)
+
+        df_vals_disp = df_values.copy()
+        df_vals_disp.loc['TOTAL ENTRADAS'] = total_entradas
+        df_vals_disp.loc['TOTAL SALIDAS'] = total_salidas
+        df_vals_disp.loc['BALANCE (NETO)'] = balance
+        df_vals_disp.loc['SALDO ACUMULADO'] = saldo_acumulado
+
+        df_status_disp = df_status.copy()
+        df_status_disp.loc['TOTAL ENTRADAS'] = 'Ninguno'
+        df_status_disp.loc['TOTAL SALIDAS'] = 'Ninguno'
+        df_status_disp.loc['BALANCE (NETO)'] = 'Ninguno'
+        df_status_disp.loc['SALDO ACUMULADO'] = 'Ninguno'
+
+        df_format = df_vals_disp.copy()
+        
+        def style_cells(data):
+            styles = pd.DataFrame('', index=data.index, columns=data.columns)
+            for col in data.columns:
+                for idx in data.index:
+                    status = df_status_disp.loc[idx, col]
+                    val = df_vals_disp.loc[idx, col]
+                    
+                    if idx in ('TOTAL ENTRADAS', 'TOTAL SALIDAS', 'BALANCE (NETO)'):
+                        styles.loc[idx, col] = 'background-color: #F2F2F2; font-weight: bold; border-top: 1px solid #CCCCCC;'
+                    elif idx == 'SALDO ACUMULADO':
+                        if val >= 0:
+                            styles.loc[idx, col] = 'background-color: #E2F0D9; font-weight: bold; border-top: 1px solid #000000; border-bottom: 2px double #000000;'
+                        else:
+                            styles.loc[idx, col] = 'background-color: #FCE4D6; font-weight: bold; border-top: 1px solid #000000; border-bottom: 2px double #000000; color: #C00000;'
+                    else:
+                        if val > 0:
+                            if status in ('Cobrado', 'Pagado'):
+                                styles.loc[idx, col] = 'background-color: #D4EDDA; color: #155724; font-weight: bold;'
+                            elif status == 'Pendiente':
+                                styles.loc[idx, col] = 'background-color: #F8D7DA; color: #721C24;'
+            return styles
+
+        st.dataframe(
+            df_format.style.apply(style_cells, axis=None).format('${:,.2f}'),
+            use_container_width=True,
+            height=500
+        )
+
+        for q_idx, q in enumerate(semanas):
+            if saldo_acumulado[q_idx] < 0:
+                st.error(f"⚠️ **Alerta de Flujo:** Se estima un saldo de caja deficitario de **${saldo_acumulado[q_idx]:,.2f} MXN** para la semana **{q['label']}**. Planifique cobranzas o postergue egresos.")
+
+    # ─── TAB 3.3: EJECUTAR GASTOS PLANEADOS (PASO 3) ───
+    with tab_exec:
+        st.markdown("### **⚡ Paso 3: Ejecutar Gastos Planeados (Pasar a Real)**")
+        st.markdown("Seleccione un gasto programado de la lista de pendientes, asocie la cuenta bancaria de retiro, el método de pago y ejecútelo oficialmente en la base de datos de egresos.")
+
+        df_pending = db.get_gastos_programados_df()
+        if not df_pending.empty:
+            df_pending = df_pending[df_pending['estado'] == 'Pendiente']
+
+        if not df_pending.empty:
+            df_pending['monto_disp'] = df_pending.apply(lambda r: f"{r['concepto']} — ${r['monto']:,.2f} (Fecha: {r['fecha_compromiso']})", axis=1)
+            
+            selected_option = st.selectbox("Seleccione el Gasto Programado a Ejecutar", df_pending['monto_disp'].tolist())
+            selected_row = df_pending[df_pending['monto_disp'] == selected_option].iloc[0]
+            
+            st.markdown("---")
+            st.markdown("#### **Detalles de la Transacción Real**")
+            
+            col_ex1, col_ex2 = st.columns(2)
+            with col_ex1:
+                ex_fecha = st.date_input("Fecha de Pago Real", datetime.date.today())
+                ex_concepto = st.text_input("Concepto Real", value=str(selected_row['concepto']))
+                ex_monto = st.number_input("Monto Neto Cobrado (IVA Incluido)", value=float(selected_row['monto']), min_value=0.01, step=100.0, format="%.2f")
+            
+            with col_ex2:
+                ex_metodo = st.selectbox("Método de Pago Efectuado", ["Tarjeta de Crédito", "Transferencia Bancaria", "Efectivo"])
+                
+                df_accounts_ex = db.get_cuentas()
+                df_accounts_ex_filtered = df_accounts_ex[df_accounts_ex['tipo'] == ex_metodo]
+                
+                if not df_accounts_ex_filtered.empty:
+                    ex_cuenta_name = st.selectbox("Cuenta / Tarjeta de Cargo", df_accounts_ex_filtered['nombre'].tolist())
+                    ex_cuenta_row = df_accounts_ex_filtered[df_accounts_ex_filtered['nombre'] == ex_cuenta_name].iloc[0]
+                    ex_cuenta_id = ex_cuenta_row['id']
+                else:
+                    ex_cuenta_id = None
+                    st.warning(f"No hay cuentas configuradas para el método: {ex_metodo}. Regístrelas en Inicio → Cuentas.")
+            
+            col_ex3, col_ex4 = st.columns(2)
+            with col_ex3:
+                ex_deducible = st.selectbox("¿Deducible / Facturable?", ["Sí", "No"])
+                ex_estado_fact = st.selectbox("Estatus de Facturación", ["Facturado", "Pendiente"])
+                
+            if st.button("🚀 Ejecutar y Registrar Gasto Oficialmente", use_container_width=True):
+                if ex_cuenta_id:
+                    success, insert_id = db.add_gasto(
+                        fecha=ex_fecha.strftime('%Y-%m-%d'),
+                        concepto=ex_concepto,
+                        monto_neto=ex_monto,
+                        rubro=selected_row['categoria'],
+                        subrubro='Gastos Fijos Programados',
+                        concepto_detallado=selected_row['concepto'],
+                        proyecto_id=None,
+                        deducible=ex_deducible,
+                        estado_facturacion=ex_estado_fact,
+                        metodo_pago=ex_metodo,
+                        cuenta_id=ex_cuenta_id,
+                        rfc_proveedor=None,
+                        uuid_fiscal=None
+                    )
+                    
+                    if success:
+                        gasto_pdf_info = {
+                            'id': insert_id,
+                            'fecha': ex_fecha.strftime('%Y-%m-%d'),
+                            'concepto': ex_concepto,
+                            'monto_neto': ex_monto,
+                            'proyecto_nombre': 'Gastos Generales / Fijos',
+                            'metodo_pago': ex_metodo,
+                            'cuenta_nombre': ex_cuenta_name,
+                            'rubro': selected_row['categoria'],
+                            'subrubro': 'Gastos Fijos Programados',
+                            'concepto_detallado': selected_row['concepto'],
+                            'deducible': ex_deducible,
+                            'estado_facturacion': ex_estado_fact,
+                            'rfc_proveedor': None,
+                            'uuid_fiscal': None
+                        }
+                        
+                        pdf_bytes = pdf_gen.generar_pdf_gasto(gasto_pdf_info)
+                        local_pdf_name = f"recibo_gasto_{insert_id}_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}.pdf"
+                        
+                        COMPROBANTES_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'comprobantes')
+                        os.makedirs(COMPROBANTES_DIR, exist_ok=True)
+                        
+                        with open(os.path.join(COMPROBANTES_DIR, local_pdf_name), "wb") as f:
+                            f.write(pdf_bytes)
+                            
+                        db.update_gasto(insert_id, pdf_filename=local_pdf_name)
+                        
+                        db.update_gasto_programado_row(
+                            gasto_id=selected_row['id'],
+                            concepto=selected_row['concepto'],
+                            monto=selected_row['monto'],
+                            fecha_compromiso=selected_row['fecha_compromiso'],
+                            categoria=selected_row['categoria'],
+                            recurrente=selected_row['recurrente'],
+                            frecuencia=selected_row['frecuencia'],
+                            estado='Pagado'
+                        )
+                        
+                        st.success(f"🎉 Gasto ejecutado y guardado con éxito. ID Real: {insert_id}.")
+                        st.session_state['last_pdf_bytes'] = pdf_bytes
+                        st.session_state['last_pdf_name'] = local_pdf_name
+                        st.session_state['gasto_guardado_exito'] = True
+                        st.rerun()
+                    else:
+                        st.error(f"Error al registrar gasto: {insert_id}")
+                else:
+                    st.error("Debe seleccionar una cuenta de cargo válida.")
+        else:
+            st.info("No hay gastos programados pendientes por ejecutar.")
+
+        st.markdown("---")
+        st.markdown("#### **📋 Historial de Movimientos y Transacciones Reales**")
+        st.caption("A continuación se muestra el registro completo de los movimientos ejecutados y guardados en el sistema.")
+        
+        df_movs = db.get_gastos_df()
+        if not df_movs.empty:
+            df_movs_disp = df_movs[[
+                'id', 'fecha', 'concepto', 'monto_neto', 'rubro', 
+                'metodo_pago', 'cuenta_nombre', 'deducible', 'estado_facturacion'
+            ]].copy()
+            
+            df_movs_disp['monto_neto'] = df_movs_disp['monto_neto'].apply(lambda v: f"${v:,.2f}")
+            df_movs_disp.columns = [
+                'ID', 'Fecha Pago', 'Concepto Real', 'Monto Neto ($)', 
+                'Rubro / Categoría', 'Método Pago', 'Cuenta / Banco Cargo', 'Deducible', 'Estatus Facturación'
+            ]
+            
+            st.dataframe(
+                df_movs_disp,
+                use_container_width=True,
+                hide_index=True,
+                height=350
+            )
+        else:
+            st.info("Aún no hay movimientos ejecutados registrados.")
+
+    # ─── TAB 3.4: EXPORTACIÓN Y ENVÍO EJECUTIVO (PASO 4) ───
+    with tab_export:
+        st.markdown("### **📥 Paso 4: Exportar Reportes y Envío de Correo (.EML)**")
+        st.markdown("Obtenga la proyección de flujo en Excel o genere la plantilla de correo corporativo (.eml) con el análisis financiero, gráficos incrustados y el Excel adjunto automáticamente para su envío rápido.")
+        
+        try:
+            df_values_e, df_status_e, _, _ = calculate_cashflow_matrix(semanas, saldo_inicial_real)
+            
+            excel_filename = f"Flujo_de_Caja_JD_Automation_{datetime.date.today().strftime('%Y%m%d')}.xlsx"
+            excel_bytes = excel_h.export_cashflow_matrix_excel(
+                semanas=semanas,
+                row_names=df_values_e.index.tolist(),
+                df_values=df_values_e,
+                df_status=df_status_e,
+                saldo_inicial=saldo_inicial_real
+            )
+            
+            col_d1, col_d2 = st.columns(2)
+            
+            with col_d1:
+                st.markdown("##### **📄 Proyección de Flujo de Caja**")
+                st.markdown("Descargue el archivo de Excel formateado con subtotales, fórmulas y códigos de colores.")
+                st.download_button(
+                    label="📥 Descargar Hoja de Flujo (.xlsx)",
+                    data=excel_bytes,
+                    file_name=excel_filename,
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True
+                )
+                
+            with col_d2:
+                st.markdown("##### **✉️ Reporte Ejecutivo por Correo (.EML)**")
+                st.markdown("Genera el archivo .EML listo para abrir en Outlook o Thunderbird con el resumen y gráficos.")
+                
+                if st.button("📧 Generar Correo .EML de Flujo", use_container_width=True):
+                    try:
+                        import modules.eml_generator as eml_gen
+                        eml_bytes = eml_gen.generate_eml_with_report(
+                            excel_bytes=excel_bytes,
+                            excel_filename=excel_filename,
+                            semanas=semanas,
+                            df_values=df_values_e,
+                            df_status=df_status_e,
+                            saldo_inicial=saldo_inicial_real
+                        )
+                        st.download_button(
+                            label="📩 Descargar Correo .EML Listo para Enviar",
+                            data=eml_bytes,
+                            file_name=f"Reporte_Semanal_Flujo_Caja_{datetime.date.today().strftime('%Y%m%d')}.eml",
+                            mime="message/rfc822",
+                            use_container_width=True
+                        )
+                        st.success("¡Correo .EML generado exitosamente!")
+                    except Exception as e_eml:
+                        st.error(f"Error al generar correo .eml: {str(e_eml)}")
+        except Exception as e:
+            st.error(f"Error al estructurar los reportes: {str(e)}")
