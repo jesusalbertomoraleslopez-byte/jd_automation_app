@@ -588,7 +588,8 @@ Sistema de Control Financiero | J&D Automation Industries"""
                             label="📋 Pegar Imagen (Ctrl+V)",
                             background_color="#434E62",
                             hover_background_color="#2C3E50",
-                            color="#FFFFFF",
+                            text_color="#FFFFFF",
+                            key="paste_comprobante_gasto"
                         )
                     
                     pasted_img = paste_res.image_data if (paste_res and paste_res.image_data is not None) else None
