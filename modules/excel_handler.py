@@ -1,8 +1,10 @@
 import io
+import re
 import datetime
 import pandas as pd
 from openpyxl import Workbook
 from openpyxl.worksheet.datavalidation import DataValidation
+from openpyxl.workbook.defined_name import DefinedName
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 from database import get_proyectos, get_cuentas, add_gasto, get_clasificaciones_dict, get_clasificaciones_df, add_clasificacion
@@ -23,9 +25,16 @@ class DynamicClasificaciones(dict):
 
 CLASIFICACIONES = DynamicClasificaciones()
 
+def _clean_excel_name(text, prefix="R_"):
+    clean = re.sub(r'[^a-zA-Z0-9_]', '_', str(text))
+    if not clean or (not clean[0].isalpha() and clean[0] != '_'):
+        clean = '_' + clean
+    return f"{prefix}{clean}"
+
 def generate_excel_template():
     """
-    Genera un archivo Excel en memoria con formato y validaciones de datos para la clasificación de 3 niveles.
+    Genera un archivo Excel en memoria con formato y validaciones de datos dependientes (cascada)
+    para la clasificación de 3 niveles: Rubro Principal -> Subrubro -> Concepto Detallado.
     Retorna los bytes del archivo generado.
     """
     wb = Workbook()
@@ -39,54 +48,69 @@ def generate_excel_template():
     df_proy = get_proyectos(only_active=True)
     proyectos = ('[' + df_proy['codigo'] + '] ' + df_proy['nombre']).tolist() if not df_proy.empty else ["Sin Proyectos Activos"]
     
-    # Extraer categorías planas del diccionario de 3 niveles
-    rubros = list(CLASIFICACIONES.keys())
-    subrubros = []
-    conceptos = []
+    clasifs_dict = get_clasificaciones_dict()
+    rubros = list(clasifs_dict.keys())
     
-    for r_name, subs in CLASIFICACIONES.items():
-        for s_name, concs in subs.items():
-            subrubros.append(s_name)
-            conceptos.extend(concs)
-            
     deducibles = ['Sí', 'No']
     estados_fact = ['Pendiente', 'Facturado']
     metodos_pago = ['Tarjeta de Crédito', 'Transferencia Bancaria', 'Efectivo']
     
-    # Escribir en Listas_Config
-    headers_config = ["Proyectos", "Rubros Principales", "Subrubros", "Conceptos Detallados", "Deducible", "Estado Fact.", "Método Pago"]
+    # Escribir listas base en Listas_Config
+    headers_config = ["Proyectos", "Rubros Principales", "Deducible", "Estado Fact.", "Método Pago"]
     for col_idx, header in enumerate(headers_config, start=1):
         ws_lists.cell(row=1, column=col_idx, value=header).font = Font(bold=True)
         
-    # Escribir proyectos
+    # Escribir proyectos (Col A)
     for idx, p in enumerate(proyectos, start=2):
         ws_lists.cell(row=idx, column=1, value=p)
         
-    # Escribir rubros
+    # Escribir rubros (Col B)
     for idx, r in enumerate(rubros, start=2):
         ws_lists.cell(row=idx, column=2, value=r)
         
-    # Escribir subrubros
-    for idx, s in enumerate(subrubros, start=2):
-        ws_lists.cell(row=idx, column=3, value=s)
-        
-    # Escribir conceptos
-    for idx, c in enumerate(conceptos, start=2):
-        ws_lists.cell(row=idx, column=4, value=c)
-        
-    # Escribir deducible
+    # Escribir deducible (Col C)
     for idx, d in enumerate(deducibles, start=2):
-        ws_lists.cell(row=idx, column=5, value=d)
+        ws_lists.cell(row=idx, column=3, value=d)
         
-    # Escribir estados
+    # Escribir estados (Col D)
     for idx, e in enumerate(estados_fact, start=2):
-        ws_lists.cell(row=idx, column=6, value=e)
+        ws_lists.cell(row=idx, column=4, value=e)
         
-    # Escribir metodos de pago
+    # Escribir metodos de pago (Col E)
     for idx, m in enumerate(metodos_pago, start=2):
-        ws_lists.cell(row=idx, column=7, value=m)
-        
-    # 3. Diseñar la hoja de Gastos
+        ws_lists.cell(row=idx, column=5, value=m)
+
+    # 3. Construir Rangos Nombrados (Defined Names) para la cascada jerárquica
+    cur_col = 10  # Comenzar en Columna J (10) en Listas_Config
+    
+    for r_name, sub_dict in clasifs_dict.items():
+        r_named_key = _clean_excel_name(r_name, prefix="R_")
+        sub_keys = list(sub_dict.keys())
+        if sub_keys:
+            ws_lists.cell(row=1, column=cur_col, value=r_named_key).font = Font(bold=True)
+            for idx_s, s_name in enumerate(sub_keys, start=2):
+                ws_lists.cell(row=idx_s, column=cur_col, value=s_name)
+            
+            c_letter = get_column_letter(cur_col)
+            end_row = 1 + len(sub_keys)
+            def_n = DefinedName(r_named_key, attr_text=f"Listas_Config!${c_letter}$2:${c_letter}${end_row}")
+            wb.defined_names.add(def_n)
+            cur_col += 1
+            
+            for s_name, conc_list in sub_dict.items():
+                if conc_list:
+                    s_named_key = _clean_excel_name(s_name, prefix="S_")
+                    ws_lists.cell(row=1, column=cur_col, value=s_named_key).font = Font(bold=True)
+                    for idx_c, c_name in enumerate(conc_list, start=2):
+                        ws_lists.cell(row=idx_c, column=cur_col, value=c_name)
+                    
+                    c_let_s = get_column_letter(cur_col)
+                    end_r_s = 1 + len(conc_list)
+                    def_n_s = DefinedName(s_named_key, attr_text=f"Listas_Config!${c_let_s}$2:${c_let_s}${end_r_s}")
+                    wb.defined_names.add(def_n_s)
+                    cur_col += 1
+
+    # 4. Diseñar la hoja de Gastos
     headers = [
         "Fecha (AAAA-MM-DD)",
         "Concepto General",
@@ -102,7 +126,6 @@ def generate_excel_template():
         "UUID Fiscal (Opcional)"
     ]
     
-    # Estilo de cabeceras
     header_fill = PatternFill(start_color="1F497D", end_color="1F497D", fill_type="solid")
     header_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
     center_align = Alignment(horizontal="center", vertical="center", wrap_text=True)
@@ -115,7 +138,6 @@ def generate_excel_template():
         cell.font = header_font
         cell.alignment = center_align
         
-    # Ajustar anchos de columnas (Columnas A a L)
     col_widths = {
         'A': 18, 'B': 30, 'C': 25, 'D': 25, 'E': 32, 'F': 32,
         'G': 35, 'H': 18, 'I': 20, 'J': 25, 'K': 22, 'L': 38
@@ -123,24 +145,26 @@ def generate_excel_template():
     for col, width in col_widths.items():
         ws_gastos.column_dimensions[col].width = width
 
-    # 4. Crear Validaciones de Datos
-    # Rubro Principal (Col D)
+    # 5. Crear Validaciones de Datos Dependientes (Cascada)
+    # Rubro Principal (Col D) -> Nivel 1
     dv_rubro = DataValidation(type="list", formula1=f"=Listas_Config!$B$2:$B${len(rubros)+1}", allow_blank=True)
     dv_rubro.error ='El Rubro seleccionado no es válido'
     dv_rubro.errorTitle = 'Rubro Inválido'
     dv_rubro.prompt = 'Seleccione el Rubro Principal'
     dv_rubro.promptTitle = 'Rubro Principal'
 
-    # Subrubro (Col E)
-    dv_subrubro = DataValidation(type="list", formula1=f"=Listas_Config!$C$2:$C${len(subrubros)+1}", allow_blank=True)
-    dv_subrubro.error ='El Subrubro seleccionado no es válido'
+    # Subrubro (Col E) -> Nivel 2 (Depende de Col D)
+    formula_sub = '=INDIRECT("R_" & SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(D2, " ", "_"), "&", "_"), "-", "_"), "/", "_"), "+", "_"), ".", "_"))'
+    dv_subrubro = DataValidation(type="list", formula1=formula_sub, allow_blank=True)
+    dv_subrubro.error ='Seleccione un Subrubro válido para el Rubro Principal seleccionado'
     dv_subrubro.errorTitle = 'Subrubro Inválido'
-    dv_subrubro.prompt = 'Seleccione el Subrubro correspondiente'
+    dv_subrubro.prompt = 'Seleccione el Subrubro correspondiente al Rubro'
     dv_subrubro.promptTitle = 'Subrubro'
 
-    # Concepto Detallado (Col F)
-    dv_concepto = DataValidation(type="list", formula1=f"=Listas_Config!$D$2:$D${len(conceptos)+1}", allow_blank=True)
-    dv_concepto.error ='El Concepto seleccionado no es válido'
+    # Concepto Detallado (Col F) -> Nivel 3 (Depende de Col E)
+    formula_conc = '=INDIRECT("S_" & SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(E2, " ", "_"), "&", "_"), "-", "_"), "/", "_"), "+", "_"), ".", "_"))'
+    dv_concepto = DataValidation(type="list", formula1=formula_conc, allow_blank=True)
+    dv_concepto.error ='Seleccione un Concepto Detallado válido para el Subrubro seleccionado'
     dv_concepto.errorTitle = 'Concepto Inválido'
     dv_concepto.prompt = 'Seleccione el Concepto Detallado'
     dv_concepto.promptTitle = 'Concepto Detallado'
@@ -148,30 +172,22 @@ def generate_excel_template():
     # Proyecto (Col G)
     dv_proy = DataValidation(type="list", formula1=f"=Listas_Config!$A$2:$A${len(proyectos)+1}", allow_blank=True)
     dv_proy.error ='El proyecto seleccionado no es válido'
-    dv_proy.errorTitle = 'Proyecto Inválido'
     dv_proy.prompt = 'Selecciona un proyecto de la lista'
-    dv_proy.promptTitle = 'Proyecto'
-    
+
     # Deducible (Col H)
-    dv_deduc = DataValidation(type="list", formula1=f"=Listas_Config!$E$2:$E${len(deducibles)+1}", allow_blank=True)
+    dv_deduc = DataValidation(type="list", formula1=f"=Listas_Config!$C$2:$C${len(deducibles)+1}", allow_blank=True)
     dv_deduc.error ='Valor inválido (Sí / No)'
-    dv_deduc.errorTitle = 'Deducible Inválido'
     dv_deduc.prompt = 'Selecciona si es deducible/facturable'
-    dv_deduc.promptTitle = 'Deducible'
     
-    # Estado Facturacion (Col I)
-    dv_est = DataValidation(type="list", formula1=f"=Listas_Config!$F$2:$F${len(estados_fact)+1}", allow_blank=True)
+    # Estado Facturación (Col I)
+    dv_est = DataValidation(type="list", formula1=f"=Listas_Config!$D$2:$D${len(estados_fact)+1}", allow_blank=True)
     dv_est.error ='El estado seleccionado no es válido'
-    dv_est.errorTitle = 'Estado Inválido'
     dv_est.prompt = 'Selecciona si ya está Facturado o Pendiente'
-    dv_est.promptTitle = 'Estado de Facturación'
     
     # Método Pago (Col J)
-    dv_met = DataValidation(type="list", formula1=f"=Listas_Config!$G$2:$G${len(metodos_pago)+1}", allow_blank=True)
+    dv_met = DataValidation(type="list", formula1=f"=Listas_Config!$E$2:$E${len(metodos_pago)+1}", allow_blank=True)
     dv_met.error ='El método de pago no es válido'
-    dv_met.errorTitle = 'Método Inválido'
     dv_met.prompt = 'Selecciona el método de pago'
-    dv_met.promptTitle = 'Método de Pago'
 
     # Agregar validaciones a la hoja de Gastos
     ws_gastos.add_data_validation(dv_rubro)
