@@ -133,7 +133,7 @@ def generate_eml_with_report(excel_bytes, excel_filename, semanas, df_values, df
                 <table style="width: 100%; border-collapse: collapse;">
                     <tr>
                         <td style="vertical-align: middle;">
-                            <img src="cid:logo_jd" alt="J&D Automation" style="max-height: 25px; width: auto; display: block;" />
+                            <img src="cid:logo_jd" alt="J&D Automation" height="40" width="auto" style="height: 40px; width: auto; display: block; border: 0;" />
                         </td>
                         <td style="text-align: right; vertical-align: middle;">
                             <h1 style="color: #FFFFFF; margin: 0; font-size: 17px; font-weight: bold; text-transform: uppercase;">Reporte Ejecutivo de Flujo de Caja</h1>
@@ -245,10 +245,10 @@ def generate_eml_with_report(excel_bytes, excel_filename, semanas, df_values, df
     msg_alt.attach(MIMEText("Este reporte requiere soporte HTML. Por favor use un cliente de correo moderno.", 'plain', 'utf-8'))
     msg_alt.attach(MIMEText(html_summary, 'html', 'utf-8'))
     
-    # Inline Image 0 (CID logo_jd) - Logo blanco visible sobre fondo Charcoal oscuro
-    logo_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'brand', 'logo_blanco.png')
+    # Inline Image 0 (CID logo_jd) - Logo naranja, alto contraste sobre fondo Charcoal
+    logo_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'brand', 'logo_naranja.png')
     if not os.path.exists(logo_path):
-        logo_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'brand', 'logo_naranja.png')
+        logo_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'brand', 'logo_blanco.png')
     if os.path.exists(logo_path):
         with open(logo_path, 'rb') as f:
             img_logo = MIMEImage(f.read())

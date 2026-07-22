@@ -365,7 +365,7 @@ def generar_eml_bytes(to_email, subject, body_text, attachment_bytes=None, attac
                     <table style="width: 100%; border-collapse: collapse;">
                         <tr>
                             <td style="vertical-align: middle;">
-                                <img src="cid:logo_jd" alt="J&D Automation" style="max-height: 25px; width: auto; display: block;" />
+                                <img src="cid:logo_jd" alt="J&D Automation" height="40" width="auto" style="height: 40px; width: auto; display: block; border: 0;" />
                             </td>
                             <td style="text-align: right; vertical-align: middle;">
                                 <span style="color: #FFFFFF; font-size: 15px; font-weight: 700; display: block;">J&D AUTOMATION INDUSTRIES</span>
@@ -400,10 +400,10 @@ def generar_eml_bytes(to_email, subject, body_text, attachment_bytes=None, attac
     msg_alt.attach(MIMEText(body_text, 'plain', 'utf-8'))
     msg_alt.attach(MIMEText(body_html, 'html', 'utf-8'))
 
-    # Incrustar el Logotipo oficial (blanco) como CID inline — visible sobre fondo Charcoal
-    logo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'brand', 'logo_blanco.png')
+    # Incrustar el Logotipo oficial (naranja) como CID inline — alto contraste sobre fondo Charcoal
+    logo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'brand', 'logo_naranja.png')
     if not os.path.exists(logo_path):
-        logo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'brand', 'logo_naranja.png')
+        logo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'brand', 'logo_blanco.png')
     if os.path.exists(logo_path):
         with open(logo_path, 'rb') as f:
             logo_img = MIMEImage(f.read())
