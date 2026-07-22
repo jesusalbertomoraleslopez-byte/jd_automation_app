@@ -282,9 +282,9 @@ def generar_pdf_manual() -> bytes:
     pdf.set_text_color(*COLOR_ORANGE)
     pdf.cell(0, 6, 'Control Financiero Inteligente - J&D Automation Industries', align='C', new_x='LMARGIN', new_y='NEXT')
     pdf.ln(2)
-    pdf.set_font('Helvetica', '', 9)
-    pdf.set_text_color(*COLOR_TEXT_LIGHT)
-    pdf.cell(0, 5, f'Versión 2.0   |   {datetime.datetime.now().strftime("%B %Y")}', align='C')
+    now = datetime.datetime.now()
+    meses_es = {1: 'Enero', 2: 'Febrero', 3: 'Marzo', 4: 'Abril', 5: 'Mayo', 6: 'Junio', 7: 'Julio', 8: 'Agosto', 9: 'Septiembre', 10: 'Octubre', 11: 'Noviembre', 12: 'Diciembre'}
+    pdf.cell(0, 5, f'Versión 2.0   |   {meses_es[now.month]} {now.year}', align='C')
     pdf.ln(10)
 
     # Secciones del manual

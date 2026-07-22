@@ -116,10 +116,11 @@ st.markdown("""
         box-shadow: 0 4px 10px rgba(254, 140, 41, 0.45) !important;
     }
     
-    /* Instructivo de arrastrar y soltar */
+    /* Instructivo de arrastrar y soltar traducido al español */
     [data-testid="stFileUploaderDropzoneInstructions"] {
         color: #434E62 !important;
-        font-weight: 500 !important;
+        font-weight: 600 !important;
+        font-family: 'Montserrat', sans-serif !important;
     }
     
     /* Aplicar tipografía Montserrat corporativa */
