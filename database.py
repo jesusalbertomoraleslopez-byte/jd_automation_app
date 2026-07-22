@@ -342,9 +342,35 @@ def get_clasificaciones_dict():
         result.setdefault(r, {}).setdefault(s, []).append(c)
     return result
 
-def get_clasificaciones_df():
+def reindex_clasificaciones():
+    """
+    Renombra y renombra los IDs de la tabla clasificaciones para que sean 
+    consecutivos (1, 2, 3... N) ordenados ascendentemente por Rubro, Subrubro y Concepto.
+    """
     conn = get_db_connection()
-    df = pd.read_sql_query("SELECT * FROM clasificaciones ORDER BY rubro, subrubro, concepto", conn)
+    cursor = conn.cursor()
+    try:
+        rows = cursor.execute("SELECT rubro, subrubro, concepto FROM clasificaciones ORDER BY rubro ASC, subrubro ASC, concepto ASC").fetchall()
+        cursor.execute("DELETE FROM clasificaciones")
+        try:
+            cursor.execute("DELETE FROM sqlite_sequence WHERE name='clasificaciones'")
+        except Exception:
+            pass
+        
+        for new_id, (r, s, c) in enumerate(rows, start=1):
+            cursor.execute("INSERT INTO clasificaciones (id, rubro, subrubro, concepto) VALUES (?, ?, ?, ?)", (new_id, r, s, c))
+            
+        conn.commit()
+        return True, "Catálogo de clasificaciones renumerado y ordenado exitosamente."
+    except Exception as e:
+        return False, str(e)
+    finally:
+        conn.close()
+
+def get_clasificaciones_df():
+    reindex_clasificaciones()
+    conn = get_db_connection()
+    df = pd.read_sql_query("SELECT id, rubro, subrubro, concepto FROM clasificaciones ORDER BY id ASC", conn)
     conn.close()
     return df
 
@@ -354,13 +380,15 @@ def add_clasificacion(rubro, subrubro, concepto):
     try:
         cursor.execute("INSERT INTO clasificaciones (rubro, subrubro, concepto) VALUES (?, ?, ?)", (rubro, subrubro, concepto))
         conn.commit()
+        conn.close()
+        reindex_clasificaciones()
         return True, "Clasificación agregada correctamente."
     except sqlite3.IntegrityError:
+        conn.close()
         return False, "Esta combinación Rubro / Subrubro / Concepto ya existe."
     except Exception as e:
-        return False, str(e)
-    finally:
         conn.close()
+        return False, str(e)
 
 def delete_clasificacion(clasif_id):
     conn = get_db_connection()
@@ -368,11 +396,12 @@ def delete_clasificacion(clasif_id):
     try:
         cursor.execute("DELETE FROM clasificaciones WHERE id = ?", (clasif_id,))
         conn.commit()
+        conn.close()
+        reindex_clasificaciones()
         return True, "Clasificación eliminada."
     except Exception as e:
-        return False, str(e)
-    finally:
         conn.close()
+        return False, str(e)
 
 def get_rubros():
     conn = get_db_connection()
