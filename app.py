@@ -6,6 +6,7 @@ import io
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
+from email.mime.image import MIMEImage
 
 from PIL import Image
 from streamlit_paste_button import paste_image_button
@@ -244,17 +245,122 @@ import modules.manual as man
 import modules.mantenimiento as maint
 import modules.flujo_caja as flujo
 
-def generar_eml_bytes(to_email, subject, body_text, attachment_bytes=None, attachment_name=None):
-    msg = MIMEMultipart()
+def generar_eml_bytes(to_email, subject, body_text, attachment_bytes=None, attachment_name=None, body_html=None):
+    """
+    Genera un archivo .EML corporativo con diseño HTML institucional, logotipo de J&D Automation Industries y adjuntos.
+    """
+    msg = MIMEMultipart('related')
     msg['From'] = 'control.financiero@jd-automation.com'
     msg['To'] = to_email
     msg['Cc'] = 'david.alanis@jydautomation.com.mx, jesus.morales@jydautomation.com.mx, administracion@jydautomation.com.mx'
     msg['Subject'] = subject
-    msg.attach(MIMEText(body_text, 'plain', 'utf-8'))
+
+    # Formatear HTML institucional si no se especificó un HTML completo
+    if not body_html:
+        lines = body_text.split('\n')
+        formatted_content = ""
+        in_list = False
+        
+        for line in lines:
+            line_str = line.strip()
+            if not line_str:
+                if in_list:
+                    formatted_content += '</ul>'
+                    in_list = False
+                continue
+                
+            if line_str.startswith("----------------") or line_str.startswith("================"):
+                if in_list:
+                    formatted_content += '</ul>'
+                    in_list = False
+                formatted_content += '<hr style="border: none; border-top: 1px solid #E2E8F0; margin: 16px 0;"/>'
+            elif line_str.isupper() and len(line_str) > 3:
+                if in_list:
+                    formatted_content += '</ul>'
+                    in_list = False
+                formatted_content += f'<h4 style="color: #434E62; margin: 20px 0 8px 0; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #FE8C29; padding-bottom: 4px;">{line_str}</h4>'
+            elif line_str.startswith("* ") or line_str.startswith("• "):
+                if not in_list:
+                    formatted_content += '<ul style="margin: 8px 0 14px 0; padding-left: 20px;">'
+                    in_list = True
+                formatted_content += f'<li style="margin-bottom: 6px; color: #334155; font-size: 13.5px;">{line_str[2:].strip()}</li>'
+            elif len(line_str) > 2 and line_str[0].isdigit() and (line_str[1:3] == ". " or line_str[2:4] == ". "):
+                if in_list:
+                    formatted_content += '</ul>'
+                    in_list = False
+                formatted_content += f'<p style="margin: 0 0 8px 0; color: #334155; font-size: 13.5px; font-weight: 500;">{line_str}</p>'
+            else:
+                if in_list:
+                    formatted_content += '</ul>'
+                    in_list = False
+                formatted_content += f'<p style="margin: 0 0 10px 0; color: #334155; font-size: 13.5px; line-height: 1.5;">{line_str}</p>'
+                
+        if in_list:
+            formatted_content += '</ul>'
+
+        body_html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+        </head>
+        <body style="font-family: Arial, Helvetica, sans-serif; background-color: #F4F6F9; margin: 0; padding: 20px; color: #333333;">
+            <div style="max-width: 650px; margin: 0 auto; background-color: #FFFFFF; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.08); border: 1px solid #DDE2E6;">
+                <!-- Header con Logotipo Corporativo -->
+                <div style="background-color: #434E62; padding: 22px 28px; border-bottom: 4px solid #FE8C29;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr>
+                            <td style="vertical-align: middle;">
+                                <img src="cid:logo_jd" alt="J&D Automation" style="max-height: 46px; width: auto; display: block;" />
+                            </td>
+                            <td style="text-align: right; vertical-align: middle;">
+                                <span style="color: #FFFFFF; font-size: 15px; font-weight: 700; display: block;">J&D AUTOMATION INDUSTRIES</span>
+                                <span style="color: #FE8C29; font-size: 12px; font-weight: 600; display: block; margin-top: 2px;">Control Financiero Inteligente</span>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+                
+                <!-- Cuerpo Principal -->
+                <div style="padding: 28px 30px;">
+                    {formatted_content}
+                </div>
+                
+                <!-- Pie de Página Corporativo -->
+                <div style="background-color: #F8FAFC; padding: 18px 25px; text-align: center; font-size: 12px; color: #64748B; border-top: 1px solid #E2E8F0;">
+                    <p style="margin: 0 0 4px 0; font-weight: 700; color: #434E62;">J&D AUTOMATION INDUSTRIES S.A. DE C.V.</p>
+                    <p style="margin: 0 0 6px 0;">Calle P #352, Col. Eduardo Guerra, Torreón, Coah. México</p>
+                    <p style="margin: 0;">
+                        <a href="https://www.jydautomation.mx" style="color: #FE8C29; text-decoration: none; font-weight: 700;">www.jydautomation.mx</a> | 
+                        <a href="mailto:contacto@jydautomation.mx" style="color: #FE8C29; text-decoration: none; font-weight: 700;">contacto@jydautomation.mx</a>
+                    </p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+
+    msg_alt = MIMEMultipart('alternative')
+    msg.attach(msg_alt)
+
+    msg_alt.attach(MIMEText(body_text, 'plain', 'utf-8'))
+    msg_alt.attach(MIMEText(body_html, 'html', 'utf-8'))
+
+    # Incrustar el Logotipo oficial como CID inline imagen
+    logo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'brand', 'logo_corporativo.png')
+    if os.path.exists(logo_path):
+        with open(logo_path, 'rb') as f:
+            logo_img = MIMEImage(f.read())
+            logo_img.add_header('Content-ID', '<logo_jd>')
+            logo_img.add_header('Content-Disposition', 'inline', filename='logo_corporativo.png')
+            msg.attach(logo_img)
+
+    # Adjuntar documento de soporte (PDF o Excel)
     if attachment_bytes and attachment_name:
         part = MIMEApplication(attachment_bytes, Name=attachment_name)
-        part['Content-Disposition'] = f'attachment; filename="{attachment_name}"'
+        part.add_header('Content-Disposition', 'attachment', filename=attachment_name)
         msg.attach(part)
+
     return msg.as_bytes()
 
 # Control de Autenticación

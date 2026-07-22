@@ -129,9 +129,18 @@ def generate_eml_with_report(excel_bytes, excel_filename, semanas, df_values, df
     <body style="font-family: Calibri, Arial, sans-serif; color: #333333; line-height: 1.5; margin: 0; padding: 20px; background-color: #F9FBFD;">
         <div style="max-width: 700px; margin: 0 auto; background-color: #FFFFFF; border: 1px solid #DDE2E6; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.06);">
             <!-- Header -->
-            <div style="background-color: #1F4E79; padding: 25px; text-align: center; border-bottom: 4px solid #E35E14;">
-                <h1 style="color: #FFFFFF; margin: 0; font-size: 22px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">Reporte Ejecutivo de Flujo de Caja</h1>
-                <p style="color: #DDEBF7; margin: 5px 0 0 0; font-size: 13px; font-weight: bold; letter-spacing: 0.5px;">J&D AUTOMATION INDUSTRIES — DIRECCIÓN GENERAL</p>
+            <div style="background-color: #434E62; padding: 22px 28px; border-bottom: 4px solid #FE8C29;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                        <td style="vertical-align: middle;">
+                            <img src="cid:logo_jd" alt="J&D Automation" style="max-height: 46px; width: auto; display: block;" />
+                        </td>
+                        <td style="text-align: right; vertical-align: middle;">
+                            <h1 style="color: #FFFFFF; margin: 0; font-size: 17px; font-weight: bold; text-transform: uppercase;">Reporte Ejecutivo de Flujo de Caja</h1>
+                            <p style="color: #FE8C29; margin: 3px 0 0 0; font-size: 12px; font-weight: bold;">J&D AUTOMATION INDUSTRIES — DIRECCIÓN GENERAL</p>
+                        </td>
+                    </tr>
+                </table>
             </div>
             
             <!-- Body -->
@@ -236,6 +245,15 @@ def generate_eml_with_report(excel_bytes, excel_filename, semanas, df_values, df
     msg_alt.attach(MIMEText("Este reporte requiere soporte HTML. Por favor use un cliente de correo moderno.", 'plain', 'utf-8'))
     msg_alt.attach(MIMEText(html_summary, 'html', 'utf-8'))
     
+    # Inline Image 0 (CID logo_jd)
+    logo_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'brand', 'logo_corporativo.png')
+    if os.path.exists(logo_path):
+        with open(logo_path, 'rb') as f:
+            img_logo = MIMEImage(f.read())
+            img_logo.add_header('Content-ID', '<logo_jd>')
+            img_logo.add_header('Content-Disposition', 'inline', filename='logo_corporativo.png')
+            msg.attach(img_logo)
+
     # Inline Image 1 (CID chart_caja_line)
     img_caja = MIMEImage(chart1_bytes)
     img_caja.add_header('Content-ID', '<chart_caja_line>')
