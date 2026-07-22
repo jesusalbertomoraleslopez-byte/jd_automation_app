@@ -245,13 +245,15 @@ def generate_eml_with_report(excel_bytes, excel_filename, semanas, df_values, df
     msg_alt.attach(MIMEText("Este reporte requiere soporte HTML. Por favor use un cliente de correo moderno.", 'plain', 'utf-8'))
     msg_alt.attach(MIMEText(html_summary, 'html', 'utf-8'))
     
-    # Inline Image 0 (CID logo_jd)
-    logo_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'brand', 'logo_corporativo.png')
+    # Inline Image 0 (CID logo_jd) - Logo blanco visible sobre fondo Charcoal oscuro
+    logo_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'brand', 'logo_blanco.png')
+    if not os.path.exists(logo_path):
+        logo_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'brand', 'logo_naranja.png')
     if os.path.exists(logo_path):
         with open(logo_path, 'rb') as f:
             img_logo = MIMEImage(f.read())
             img_logo.add_header('Content-ID', '<logo_jd>')
-            img_logo.add_header('Content-Disposition', 'inline', filename='logo_corporativo.png')
+            img_logo.add_header('Content-Disposition', 'inline', filename='logo_jd.png')
             msg.attach(img_logo)
 
     # Inline Image 1 (CID chart_caja_line)

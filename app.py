@@ -400,13 +400,15 @@ def generar_eml_bytes(to_email, subject, body_text, attachment_bytes=None, attac
     msg_alt.attach(MIMEText(body_text, 'plain', 'utf-8'))
     msg_alt.attach(MIMEText(body_html, 'html', 'utf-8'))
 
-    # Incrustar el Logotipo oficial como CID inline imagen
-    logo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'brand', 'logo_corporativo.png')
+    # Incrustar el Logotipo oficial (blanco) como CID inline — visible sobre fondo Charcoal
+    logo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'brand', 'logo_blanco.png')
+    if not os.path.exists(logo_path):
+        logo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'brand', 'logo_naranja.png')
     if os.path.exists(logo_path):
         with open(logo_path, 'rb') as f:
             logo_img = MIMEImage(f.read())
             logo_img.add_header('Content-ID', '<logo_jd>')
-            logo_img.add_header('Content-Disposition', 'inline', filename='logo_corporativo.png')
+            logo_img.add_header('Content-Disposition', 'inline', filename='logo_jd.png')
             msg.attach(logo_img)
 
     # Adjuntar documento de soporte (PDF o Excel)
