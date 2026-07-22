@@ -63,8 +63,16 @@ def calculate_cashflow_matrix(semanas, saldo_inicial_caja):
         "🏛️ SAT - Impuestos",
         "🏥 IMSS / Infonavit",
         "🔧 Proveedores (Backorder OCs)",
-        "⚡ Servicios & Operación",
-        "⛽ Combustibles (Gasolina)",
+        "⚡ Gastos Fijos & Servicios",
+        "⛽ Combustibles",
+        "🛠️ Consumibles de Taller",
+        "💼 Gastos de Proyectos",
+        "🔧 Mantenimiento & Mejora",
+        "🏛️ Inversiones & Activos",
+        "💳 Gastos Financieros",
+        "🧰 Herramienta",
+        "📑 Facturación Directa",
+        "⏳ Facturación por Pagar",
         "📦 Otros Egresos"
     ]
 
@@ -99,7 +107,6 @@ def calculate_cashflow_matrix(semanas, saldo_inicial_caja):
                 
                 if proj_row in df_values.index:
                     df_values.loc[proj_row, lbl] += monto
-                    # Estado: si hay múltiples se conserva 'Cobrado' si todo está cobrado, o 'Pendiente' si hay pendientes
                     current_status = df_status.loc[proj_row, lbl]
                     if current_status == 'Ninguno':
                         df_status.loc[proj_row, lbl] = status
@@ -143,6 +150,8 @@ def calculate_cashflow_matrix(semanas, saldo_inicial_caja):
                     if rubro and cat_key.lower() in rubro.lower():
                         row_name = target_row
                         break
+                if row_name not in df_values.index:
+                    row_name = "📦 Otros Egresos"
                         
                 df_values.loc[row_name, lbl] += monto
                 df_status.loc[row_name, lbl] = 'Pagado'
@@ -156,13 +165,14 @@ def calculate_cashflow_matrix(semanas, saldo_inicial_caja):
                 cat = row['categoria']
                 status = row['estado']
                 
-                # Si el estado es 'Pagado', ya se sumó en Gastos Reales
                 if status == 'Pagado':
                     continue
                     
                 row_name = "📦 Otros Egresos"
                 if cat in cat_map:
                     row_name = cat_map[cat]
+                if row_name not in df_values.index:
+                    row_name = "📦 Otros Egresos"
                     
                 df_values.loc[row_name, lbl] += monto
                 
@@ -175,9 +185,11 @@ def calculate_cashflow_matrix(semanas, saldo_inicial_caja):
             mask = (df_backorder['fecha_dt'] >= start) & (df_backorder['fecha_dt'] <= end)
             q_bo = df_backorder[mask]
             row_name = "🔧 Proveedores (Backorder OCs)"
+            if row_name not in df_values.index:
+                row_name = "📦 Otros Egresos"
             for _, row in q_bo.iterrows():
                 monto = row['monto_oc']
-                status = row['estado']  # 'Pendiente' o 'Pagado'
+                status = row['estado']
                 
                 df_values.loc[row_name, lbl] += monto
                 current_status = df_status.loc[row_name, lbl]
